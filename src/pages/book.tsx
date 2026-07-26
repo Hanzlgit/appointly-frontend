@@ -1,59 +1,21 @@
-import { addDays, formatISO, startOfDay } from "date-fns";
-import { useMemo, useState } from "react";
+import { formatISO, startOfDay } from "date-fns";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { catalogPublicBrowse, tenantContextRetrieve } from "@/api/tenant";
-import { schedulingAvailabilityQuery, schedulingBookingCreate } from "@/api/scheduling";
+import { schedulingBookingCreate } from "@/api/scheduling";
+import { SlotPicker } from "@/components/booking/slot-picker";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authIsLoggedIn } from "@/lib/auth-storage";
-import { formatDateTime } from "@/lib/utils";
-import type { ApiError, AvailabilityResult } from "@/types/api";
+import type { BookableSlot } from "@/lib/booking-slots";
+import type { ApiError } from "@/types/api";
 
-interface BookableSlot {
-  key: string;
-  start: string;
-  end: string;
-  remaining_capacity: number;
-  location_id: number;
-  time_slot_id?: number;
-  resource_id?: number;
-}
-
-/** 将可用性查询结果统一为可预约时段列表。 */
-function availabilityToBookableSlots(result: AvailabilityResult): BookableSlot[] {
-  if (result.mode === "resource") {
-    return result.slots.map((slot) => ({
-      key: `resource-${slot.time_slot_id}`,
-      start: slot.start,
-      end: slot.end,
-      remaining_capacity: slot.remaining_capacity,
-      location_id: slot.location_id,
-      time_slot_id: slot.time_slot_id,
-      resource_id: slot.resource_id,
-    }));
-  }
-
-  return result.availability.map((item) => ({
-    key: `aggregate-${item.service_id}-${item.location_id}-${item.start}`,
-    start: item.start,
-    end: item.end,
-    remaining_capacity: item.remaining_capacity,
-    location_id: item.location_id,
-  }));
-}
-
-/** 过滤已开始的时段，只保留未来可预约项。 */
-function filterUpcomingSlots(slots: BookableSlot[]): BookableSlot[] {
-  const now = Date.now();
-  return slots.filter((slot) => new Date(slot.start).getTime() > now);
-}
-
-/** 预约流程页：选日期、时段并提交。 */
+/** 预约流程页：选地点、日期、时段并提交。 */
 export function BookPage() {
   const { tenantSlug = "" } = useParams();
   const navigate = useNavigate();
@@ -63,6 +25,7 @@ export function BookPage() {
   const [selectedDate, setSelectedDate] = useState(() =>
     formatISO(startOfDay(new Date()), { representation: "date" }),
   );
+  const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<BookableSlot | null>(null);
   const [partySize, setPartySize] = useState(1);
   const [contactName, setContactName] = useState("");
@@ -79,30 +42,22 @@ export function BookPage() {
     queryFn: () => catalogPublicBrowse(tenantSlug),
   });
 
+  const locations = catalogQuery.data?.locations ?? [];
   const service = catalogQuery.data?.services.find((item) => item.id === serviceId);
+  const hasMultipleLocations = locations.length > 1;
 
-  const availabilityRange = useMemo(() => {
-    const start = startOfDay(new Date(`${selectedDate}T00:00:00`));
-    const end = addDays(start, 1);
-    return {
-      start: start.toISOString(),
-      end: end.toISOString(),
-    };
-  }, [selectedDate]);
-
-  const availabilityQuery = useQuery({
-    queryKey: ["availability", tenantSlug, serviceId, selectedDate],
-    queryFn: () =>
-      schedulingAvailabilityQuery(tenantSlug, {
-        ...availabilityRange,
-        service_id: serviceId,
-      }),
-    enabled: serviceId > 0,
-  });
-
-  const slots = filterUpcomingSlots(
-    availabilityQuery.data ? availabilityToBookableSlots(availabilityQuery.data) : [],
-  );
+  useEffect(() => {
+    if (locations.length === 0) {
+      setSelectedLocationId(null);
+      return;
+    }
+    setSelectedLocationId((current) => {
+      if (current != null && locations.some((location) => location.id === current)) {
+        return current;
+      }
+      return locations[0]?.id ?? null;
+    });
+  }, [locations]);
 
   const bookingMutation = useMutation({
     mutationFn: () => {
@@ -166,54 +121,49 @@ export function BookPage() {
 
       {error ? <Alert variant="destructive">{error}</Alert> : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>选择日期</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Input
-            type="date"
-            value={selectedDate}
-            onChange={(event) => {
-              setSelectedDate(event.target.value);
-              setSelectedSlot(null);
-            }}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>可用时段</CardTitle>
-          <CardDescription>点击选择合适的时间。</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {availabilityQuery.isLoading ? (
-            <p className="text-muted-foreground">查询可用时段中…</p>
-          ) : slots.length === 0 ? (
-            <Alert>
-              该日期暂无可用时段。若选的是今天，可能时段已过，请尝试选择明天或之后的日期。
-            </Alert>
-          ) : (
-            <div className="grid gap-2 sm:grid-cols-2">
-              {slots.map((slot) => {
-                const isSelected = selectedSlot?.key === slot.key;
+      {hasMultipleLocations ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>选择地点</CardTitle>
+            <CardDescription>该服务在多个地点提供，请先选择预约地点。</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-2">
+              {locations.map((location) => {
+                const isSelected = selectedLocationId === location.id;
                 return (
                   <Button
-                    key={slot.key}
+                    key={location.id}
                     type="button"
                     variant={isSelected ? "default" : "outline"}
-                    className="justify-start"
-                    onClick={() => setSelectedSlot(slot)}
+                    className="h-auto justify-start px-4 py-3 text-left"
+                    onClick={() => {
+                      setSelectedLocationId(location.id);
+                      setSelectedSlot(null);
+                    }}
                   >
-                    {formatDateTime(slot.start, timeZone)} · 余 {slot.remaining_capacity}
+                    <span className="font-medium">{location.name}</span>
+                    {location.address ? (
+                      <span className="mt-0.5 block text-xs opacity-80">{location.address}</span>
+                    ) : null}
                   </Button>
                 );
               })}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <SlotPicker
+        tenantSlug={tenantSlug}
+        serviceId={serviceId}
+        locationId={selectedLocationId}
+        timeZone={timeZone}
+        selectedDate={selectedDate}
+        onSelectedDateChange={setSelectedDate}
+        selectedSlot={selectedSlot}
+        onSelectedSlotChange={setSelectedSlot}
+      />
 
       <Card>
         <CardHeader>

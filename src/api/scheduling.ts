@@ -69,3 +69,18 @@ export function schedulingBookingCancel(
     { reason },
   );
 }
+
+/** 改期至新时段。 */
+export function schedulingBookingReschedule(
+  tenantSlug: string,
+  bookingId: number,
+  payload: {
+    time_slot_id: number;
+    idempotency_key: string;
+  },
+) {
+  return apiClient.post<Booking>(
+    `/api/v1/${tenantSlug}/scheduling/bookings/${bookingId}/reschedule/`,
+    payload,
+  );
+}
