@@ -3,8 +3,9 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 
 import { authCreateCustomerSession, authSendVerificationCode } from "@/api/auth";
-import { Alert } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authTokensSave } from "@/lib/auth-storage";
@@ -50,22 +51,36 @@ export function LoginPage() {
   });
 
   return (
-    <div className="space-y-8">
-      <header className="page-header">
-        <h1 className="page-title">手机号登录</h1>
-        <p className="page-lead">验证后可预约并查看订单。</p>
-      </header>
+    <div className="space-y-6">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight">手机号登录</h1>
+        <p className="text-sm text-muted-foreground">验证后可预约并查看订单。</p>
+      </div>
 
-      <div className="section-panel">
-        <div className="section-panel-body space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>验证码登录</CardTitle>
+          <CardDescription>输入手机号并完成短信验证。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
           {import.meta.env.DEV ? (
             <Alert>
-              开发环境：先发送验证码，再从后端终端复制{" "}
-              <code className="font-mono text-xs">code=123456</code>。
+              <AlertDescription>
+                开发环境：先发送验证码，再从后端终端复制{" "}
+                <code className="font-mono text-xs">code=123456</code>。
+              </AlertDescription>
             </Alert>
           ) : null}
-          {message ? <Alert>{message}</Alert> : null}
-          {error ? <Alert variant="destructive">{error}</Alert> : null}
+          {message ? (
+            <Alert>
+              <AlertDescription>{message}</AlertDescription>
+            </Alert>
+          ) : null}
+          {error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
 
           <div className="space-y-2">
             <Label htmlFor="phone">手机号</Label>
@@ -106,8 +121,8 @@ export function LoginPage() {
           >
             登录
           </Button>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

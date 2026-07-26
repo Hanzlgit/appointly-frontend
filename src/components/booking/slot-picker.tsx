@@ -3,8 +3,11 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { schedulingAvailabilityQuery } from "@/api/scheduling";
-import { Alert } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   availabilityToBookableSlots,
   filterSlotsByLocation,
@@ -73,11 +76,11 @@ export function SlotPicker({
 
   return (
     <div className="space-y-4">
-      <div className="section-panel">
-        <div className="section-panel-header">
-          <h3 className="section-panel-title">日期</h3>
-        </div>
-        <div className="section-panel-body">
+      <Card>
+        <CardHeader>
+          <CardTitle>日期</CardTitle>
+        </CardHeader>
+        <CardContent>
           <Input
             type="date"
             className="max-w-xs font-mono tabular-nums"
@@ -87,45 +90,49 @@ export function SlotPicker({
               onSelectedSlotChange(null);
             }}
           />
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="section-panel">
-        <div className="section-panel-header">
-          <h3 className="section-panel-title">
-            可用时段
-            {location ? (
-              <span className="ml-2 font-normal text-muted-foreground">· {location.name}</span>
-            ) : null}
-          </h3>
-        </div>
-        <div className="section-panel-body">
+      <Card>
+        <CardHeader>
+          <CardTitle>可用时段</CardTitle>
+          {location ? <CardDescription>{location.name}</CardDescription> : null}
+        </CardHeader>
+        <CardContent>
           {availabilityQuery.isLoading ? (
-            <p className="text-sm text-muted-foreground">查询可用时段…</p>
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <Skeleton key={index} className="h-8 w-24" />
+              ))}
+            </div>
           ) : slots.length === 0 ? (
             <Alert>
-              该日期暂无可用时段。若选的是今天，时段可能已过，请换一天。
+              <AlertDescription>
+                该日期暂无可用时段。若选的是今天，时段可能已过，请换一天。
+              </AlertDescription>
             </Alert>
           ) : (
             <div className="flex flex-wrap gap-2">
               {slots.map((slot) => {
                 const isSelected = selectedSlot?.key === slot.key;
                 return (
-                  <button
+                  <Button
                     key={slot.key}
                     type="button"
-                    className={cn("slot-chip", isSelected && "slot-chip-selected")}
+                    variant={isSelected ? "default" : "outline"}
+                    size="sm"
+                    className={cn("font-mono tabular-nums")}
                     onClick={() => onSelectedSlotChange(slot)}
                   >
                     {formatDateTime(slot.start, timeZone)}
-                    <span className="ml-1.5 opacity-70">余{slot.remaining_capacity}</span>
-                  </button>
+                    <span className="opacity-70">余{slot.remaining_capacity}</span>
+                  </Button>
                 );
               })}
             </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

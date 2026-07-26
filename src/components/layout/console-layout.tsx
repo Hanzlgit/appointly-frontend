@@ -5,6 +5,8 @@ import { CalendarCog, LayoutDashboard, LogOut, Package, Settings2 } from "lucide
 import { staffTenantMembershipRetrieve } from "@/api/staff-auth";
 import { tenantContextRetrieve } from "@/api/tenant";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ConsoleSessionProvider, useConsoleSession } from "@/lib/console-session";
 import { staffAuthIsLoggedIn, staffAuthTokensClear } from "@/lib/staff-auth-storage";
 import { staffIsAdmin, staffRoleLabel } from "@/lib/staff-role";
@@ -36,7 +38,12 @@ export function ConsoleAuthGuard() {
   });
 
   if (membershipQuery.isLoading) {
-    return <p className="p-8 text-sm text-muted-foreground">验证身份中…</p>;
+    return (
+      <div className="space-y-3 p-8">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-4 w-64" />
+      </div>
+    );
   }
 
   if (membershipQuery.isError) {
@@ -70,8 +77,8 @@ function ConsoleLayout({ role }: ConsoleLayoutProps) {
   const basePath = `/t/${tenantSlug}/console`;
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card">
+    <div className="min-h-svh bg-background">
+      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div>
             <Link to={basePath} className="text-base font-semibold tracking-tight">
@@ -80,8 +87,8 @@ function ConsoleLayout({ role }: ConsoleLayoutProps) {
             <p className="text-xs text-muted-foreground">控制台 · {staffRoleLabel(role)}</p>
           </div>
           <div className="flex items-center gap-1">
-            <Button asChild variant="ghost" size="sm">
-              <Link to={`/t/${tenantSlug}`}>客户预约页</Link>
+            <Button variant="ghost" size="sm" render={<Link to={`/t/${tenantSlug}`} />}>
+              客户预约页
             </Button>
             <Button
               variant="ghost"
@@ -96,36 +103,32 @@ function ConsoleLayout({ role }: ConsoleLayoutProps) {
             </Button>
           </div>
         </div>
+        <Separator />
       </header>
 
-      <div className="mx-auto grid max-w-6xl gap-0 px-4 lg:grid-cols-[200px_1fr]">
-        <nav className="border-b border-border py-4 lg:border-b-0 lg:border-r lg:py-6 lg:pr-6">
-          <div className="flex gap-1 overflow-x-auto lg:flex-col lg:gap-0">
-            {NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin).map((item) => {
-              const Icon = item.icon;
-              const href = `${basePath}/${item.to}`;
-              const isActive = location.pathname.startsWith(href);
+      <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 lg:grid-cols-[220px_1fr]">
+        <nav className="flex gap-1 overflow-x-auto lg:flex-col lg:gap-1">
+          {NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin).map((item) => {
+            const Icon = item.icon;
+            const href = `${basePath}/${item.to}`;
+            const isActive = location.pathname.startsWith(href);
 
-              return (
-                <Link
-                  key={item.to}
-                  to={href}
-                  className={cn(
-                    "flex shrink-0 items-center gap-2 border-l-2 px-3 py-2 text-sm transition-colors",
-                    isActive
-                      ? "border-primary font-medium text-foreground"
-                      : "border-transparent text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <Icon className="size-3.5" />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </div>
+            return (
+              <Button
+                key={item.to}
+                variant={isActive ? "secondary" : "ghost"}
+                size="sm"
+                className={cn("shrink-0 justify-start lg:w-full")}
+                render={<Link to={href} />}
+              >
+                <Icon className="size-3.5" />
+                {item.label}
+              </Button>
+            );
+          })}
         </nav>
 
-        <main className="min-w-0 py-6 lg:pl-8">
+        <main className="min-w-0">
           <Outlet />
         </main>
       </div>

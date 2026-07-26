@@ -24,12 +24,16 @@ export const appRouter = createBrowserRouter([
   },
   {
     path: "/t/:tenantSlug",
-    element: <TenantLayout />,
     children: [
-      { index: true, element: <TenantHomePage /> },
-      { path: "login", element: <LoginPage /> },
-      { path: "book", element: <BookPage /> },
-      { path: "bookings", element: <MyBookingsPage /> },
+      {
+        element: <TenantLayout />,
+        children: [
+          { index: true, element: <TenantHomePage /> },
+          { path: "login", element: <LoginPage /> },
+          { path: "book", element: <BookPage /> },
+          { path: "bookings", element: <MyBookingsPage /> },
+        ],
+      },
       { path: "console/login", element: <ConsoleLoginPage /> },
       {
         path: "console",

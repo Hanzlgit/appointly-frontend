@@ -5,10 +5,19 @@ import {
   staffBookingSettingsRetrieve,
   staffBookingSettingsUpdate,
 } from "@/api/staff-catalog";
-import { Alert } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useConsoleSession } from "@/lib/console-session";
 import type { ApiError } from "@/types/api";
 import type { BookingSettings } from "@/types/staff-api";
@@ -58,28 +67,45 @@ export function ConsoleSettingsPage() {
   });
 
   if (settingsQuery.isLoading || !form) {
-    return <p className="text-sm text-muted-foreground">加载预约规则…</p>;
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-32" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
   }
 
   if (settingsQuery.isError) {
-    return <Alert variant="destructive">无法加载预约规则。</Alert>;
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>无法加载预约规则。</AlertDescription>
+      </Alert>
+    );
   }
 
   return (
-    <div className="space-y-8">
-      <header className="page-header">
-        <h1 className="page-title">预约规则</h1>
-        <p className="page-lead">客户预约与取消的业务限制。</p>
-      </header>
+    <div className="space-y-6">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight">预约规则</h1>
+        <p className="text-sm text-muted-foreground">客户预约与取消的业务限制。</p>
+      </div>
 
-      {message ? <Alert>{message}</Alert> : null}
-      {error ? <Alert variant="destructive">{error}</Alert> : null}
+      {message ? (
+        <Alert>
+          <AlertDescription>{message}</AlertDescription>
+        </Alert>
+      ) : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
 
-      <div className="section-panel">
-        <div className="section-panel-header">
-          <h3 className="section-panel-title">时间与容量</h3>
-        </div>
-        <div className="section-panel-body grid gap-4 sm:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle>时间与容量</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="min-advance">最少提前预约（分钟）</Label>
             <Input
@@ -147,23 +173,26 @@ export function ConsoleSettingsPage() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="confirmation-mode">确认模式</Label>
-            <select
-              id="confirmation-mode"
-              className="flex h-9 w-full rounded-sm border border-input bg-background px-3 py-2 text-sm"
+            <Select
               value={form.confirmation_mode}
-              onChange={(e) =>
+              onValueChange={(value) =>
                 setForm({
                   ...form,
-                  confirmation_mode: e.target.value as BookingSettings["confirmation_mode"],
+                  confirmation_mode: value as BookingSettings["confirmation_mode"],
                 })
               }
             >
-              <option value="auto">自动确认</option>
-              <option value="manual">人工确认</option>
-            </select>
+              <SelectTrigger id="confirmation-mode" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">自动确认</SelectItem>
+                <SelectItem value="manual">人工确认</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       <Button disabled={saveMutation.isPending} onClick={() => saveMutation.mutate()}>
         保存设置

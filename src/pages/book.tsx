@@ -6,11 +6,18 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { catalogPublicBrowse, tenantContextRetrieve } from "@/api/tenant";
 import { schedulingBookingCreate } from "@/api/scheduling";
 import { SlotPicker } from "@/components/booking/slot-picker";
-import { LocationDetail } from "@/components/catalog/location-detail";
-import { Alert } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { authIsLoggedIn } from "@/lib/auth-storage";
 import { findLocation } from "@/lib/catalog";
 import type { BookableSlot } from "@/lib/booking-slots";
@@ -82,7 +89,7 @@ export function BookPage() {
         contact_phone: contactPhone,
       });
     },
-    onSuccess: () => navigate(`/t/${tenantSlug}/bookings`),
+    onSuccess: () => navigate(`/t/${tenantSlug}/bookings?success=1`),
     onError: (err: ApiError) => setError(err.message),
   });
 
@@ -93,23 +100,39 @@ export function BookPage() {
   const bookPath = `/t/${tenantSlug}/book?${bookQuery.toString()}`;
 
   if (!serviceId) {
-    return <Alert>请从首页选择一项服务后再预约。</Alert>;
+    return (
+      <Alert>
+        <AlertDescription>请从首页选择一项服务后再预约。</AlertDescription>
+      </Alert>
+    );
   }
 
   if (catalogQuery.isLoading || tenantQuery.isLoading) {
-    return <p className="text-sm text-muted-foreground">正在加载…</p>;
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-56" />
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
   }
 
   if (!service) {
-    return <Alert variant="destructive">未找到对应服务。</Alert>;
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>未找到对应服务。</AlertDescription>
+      </Alert>
+    );
   }
 
   if (!selectedLocation) {
     return (
-      <div className="space-y-6">
-        <Alert>请先从首页选择门店。</Alert>
-        <Button asChild variant="outline">
-          <Link to={`/t/${tenantSlug}`}>返回选择门店</Link>
+      <div className="space-y-4">
+        <Alert>
+          <AlertDescription>请先从首页选择门店。</AlertDescription>
+        </Alert>
+        <Button variant="outline" render={<Link to={`/t/${tenantSlug}`} />}>
+          返回选择门店
         </Button>
       </div>
     );
@@ -117,10 +140,17 @@ export function BookPage() {
 
   if (!service.location_ids?.includes(selectedLocation.id)) {
     return (
-      <div className="space-y-6">
-        <Alert variant="destructive">「{service.name}」在 {selectedLocation.name} 不可预约。</Alert>
-        <Button asChild variant="outline">
-          <Link to={`/t/${tenantSlug}?locationId=${selectedLocation.id}`}>返回选择其他服务</Link>
+      <div className="space-y-4">
+        <Alert variant="destructive">
+          <AlertDescription>
+            「{service.name}」在 {selectedLocation.name} 不可预约。
+          </AlertDescription>
+        </Alert>
+        <Button
+          variant="outline"
+          render={<Link to={`/t/${tenantSlug}?locationId=${selectedLocation.id}`} />}
+        >
+          返回选择其他服务
         </Button>
       </div>
     );
@@ -130,12 +160,12 @@ export function BookPage() {
     const redirect = encodeURIComponent(bookPath);
     return (
       <div className="space-y-6">
-        <header className="page-header">
-          <h1 className="page-title">需要登录</h1>
-          <p className="page-lead">预约前请先验证手机号。</p>
-        </header>
-        <Button asChild>
-          <Link to={`/t/${tenantSlug}/login?redirect=${redirect}`}>去登录</Link>
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">需要登录</h1>
+          <p className="text-sm text-muted-foreground">预约前请先验证手机号。</p>
+        </div>
+        <Button render={<Link to={`/t/${tenantSlug}/login?redirect=${redirect}`} />}>
+          去登录
         </Button>
       </div>
     );
@@ -144,36 +174,37 @@ export function BookPage() {
   const timeZone = tenantQuery.data?.timezone;
 
   return (
-    <div className="space-y-8">
-      <header className="page-header">
-        <p className="text-xs text-muted-foreground">
-          {selectedLocation.name}
-          {selectedLocation.address ? ` · ${selectedLocation.address}` : ""}
-        </p>
-        <h1 className="page-title">{service.name}</h1>
-        <p className="page-lead">
-          <span className="font-mono tabular-nums">{service.duration_minutes}′</span>
-          {" · "}
-          {formatPrice(service.price_cents, service.currency)}
-        </p>
-        {service.description ? (
-          <p className="mt-2 text-sm text-muted-foreground">{service.description}</p>
-        ) : null}
-      </header>
-
-      {error ? <Alert variant="destructive">{error}</Alert> : null}
-
-      <div className="section-panel">
-        <div className="section-panel-header flex items-center justify-between gap-2">
-          <h3 className="section-panel-title">预约门店</h3>
-          <Button asChild variant="ghost" size="sm">
-            <Link to={`/t/${tenantSlug}?locationId=${selectedLocation.id}`}>换服务</Link>
+    <div className="space-y-6">
+      <Card className="border-none bg-transparent shadow-none ring-0">
+        <CardHeader className="flex flex-row items-start justify-between gap-3 px-0 pt-0">
+          <div>
+            <CardDescription>服务项目</CardDescription>
+            <CardTitle className="text-2xl">{service.name}</CardTitle>
+            <CardDescription>
+              <span className="font-mono tabular-nums">{service.duration_minutes}′</span>
+              {" · "}
+              {formatPrice(service.price_cents, service.currency)}
+            </CardDescription>
+            {service.description ? (
+              <CardDescription>{service.description}</CardDescription>
+            ) : null}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            render={<Link to={`/t/${tenantSlug}?locationId=${selectedLocation.id}`} />}
+          >
+            换服务
           </Button>
-        </div>
-        <div className="section-panel-body">
-          <LocationDetail location={selectedLocation} />
-        </div>
-      </div>
+        </CardHeader>
+      </Card>
+
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
 
       <SlotPicker
         tenantSlug={tenantSlug}
@@ -187,11 +218,11 @@ export function BookPage() {
         onSelectedSlotChange={setSelectedSlot}
       />
 
-      <div className="section-panel">
-        <div className="section-panel-header">
-          <h3 className="section-panel-title">联系信息</h3>
-        </div>
-        <div className="section-panel-body space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>联系信息</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="party-size">人数</Label>
             <Input
@@ -226,8 +257,8 @@ export function BookPage() {
           >
             确认预约
           </Button>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

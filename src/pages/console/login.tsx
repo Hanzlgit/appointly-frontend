@@ -3,8 +3,9 @@ import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom"
 import { useMutation } from "@tanstack/react-query";
 
 import { staffAuthCreateSession } from "@/api/staff-auth";
-import { Alert } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { staffAuthIsLoggedIn } from "@/lib/staff-auth-storage";
@@ -33,50 +34,51 @@ export function ConsoleLoginPage() {
   });
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm space-y-6">
-        <header>
-          <h1 className="text-xl font-semibold tracking-tight">控制台登录</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+    <div className="flex min-h-svh items-center justify-center bg-background px-4">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle>控制台登录</CardTitle>
+          <CardDescription>
             租户 <span className="font-mono">{tenantSlug}</span>
-          </p>
-        </header>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
 
-        <div className="section-panel">
-          <div className="section-panel-body space-y-4">
-            {error ? <Alert variant="destructive">{error}</Alert> : null}
-
-            <div className="space-y-2">
-              <Label htmlFor="staff-login">用户名</Label>
-              <Input
-                id="staff-login"
-                autoComplete="username"
-                value={login}
-                onChange={(event) => setLogin(event.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="staff-password">密码</Label>
-              <Input
-                id="staff-password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            </div>
-
-            <Button
-              className="w-full"
-              disabled={!login || !password || loginMutation.isPending}
-              onClick={() => loginMutation.mutate()}
-            >
-              登录
-            </Button>
+          <div className="space-y-2">
+            <Label htmlFor="staff-login">用户名</Label>
+            <Input
+              id="staff-login"
+              autoComplete="username"
+              value={login}
+              onChange={(event) => setLogin(event.target.value)}
+            />
           </div>
-        </div>
-      </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="staff-password">密码</Label>
+            <Input
+              id="staff-password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </div>
+
+          <Button
+            className="w-full"
+            disabled={!login || !password || loginMutation.isPending}
+            onClick={() => loginMutation.mutate()}
+          >
+            登录
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
