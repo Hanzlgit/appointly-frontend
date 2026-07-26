@@ -60,6 +60,18 @@ npm run preview
 | `/t/:tenantSlug/book?serviceId=` | 预约流程 |
 | `/t/:tenantSlug/bookings` | 我的预约 |
 
+## 管理控制台（员工 / 管理员）
+
+| 路径 | 说明 |
+|------|------|
+| `/t/:tenantSlug/console/login` | 员工/管理员登录 |
+| `/t/:tenantSlug/console/dashboard` | 经营看板（仅管理员） |
+| `/t/:tenantSlug/console/bookings` | 预约管理 |
+| `/t/:tenantSlug/console/catalog` | 服务目录（仅管理员） |
+| `/t/:tenantSlug/console/settings` | 预约规则（仅管理员） |
+
+员工与客户使用**独立的 JWT 存储**，可在同一浏览器分别登录。
+
 ## 与后端的关系
 
 本仓库与 `appointly` 后端**独立部署**。生产环境常见组合：
