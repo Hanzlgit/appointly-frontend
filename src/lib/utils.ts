@@ -36,3 +36,14 @@ export function formatPrice(priceCents: number, currency: string): string {
     return `${currency} ${amount.toFixed(2)}`;
   }
 }
+
+/** 预约时段：开始日期时间 + 结束时刻。 */
+export function formatBookingWhen(start: string, end: string, timeZone?: string): string {
+  const startLabel = formatDateTime(start, timeZone);
+  const endLabel = new Intl.DateTimeFormat("zh-CN", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(end));
+  return `${startLabel} — ${endLabel}`;
+}

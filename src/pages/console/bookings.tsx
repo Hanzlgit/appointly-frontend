@@ -11,7 +11,6 @@ import { catalogPublicBrowse, tenantContextRetrieve } from "@/api/tenant";
 import { BookingStatusBadge } from "@/components/booking/booking-status-badge";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useConsoleSession } from "@/lib/console-session";
 import { staffIsAdmin } from "@/lib/staff-role";
 import { formatDateTime } from "@/lib/utils";
@@ -67,7 +66,7 @@ export function ConsoleBookingsPage() {
   });
 
   if (bookingsQuery.isLoading) {
-    return <p className="text-muted-foreground">加载预约列表…</p>;
+    return <p className="text-sm text-muted-foreground">加载预约列表…</p>;
   }
 
   if (bookingsQuery.isError) {
@@ -83,43 +82,46 @@ export function ConsoleBookingsPage() {
     catalogQuery.data?.locations.find((l) => l.id === id)?.name ?? `地点 #${id}`;
 
   return (
-    <div className="space-y-6">
-      <section>
-        <h1 className="text-2xl font-bold">预约管理</h1>
-        <p className="text-muted-foreground">
-          {isAdmin ? "查看全部预约并处理待确认/进行中订单。" : "查看与您关联资源的预约。"}
+    <div className="space-y-8">
+      <header className="page-header">
+        <h1 className="page-title">预约管理</h1>
+        <p className="page-lead">
+          {isAdmin ? "处理待确认与进行中的订单。" : "查看与您关联资源的预约。"}
         </p>
-      </section>
+      </header>
 
       {bookings.length === 0 ? (
         <Alert>暂无预约记录。</Alert>
       ) : (
-        <div className="grid gap-4">
+        <div className="section-panel">
           {bookings.map((booking) => (
-            <Card key={booking.id}>
-              <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
-                <div className="space-y-1">
-                  <CardTitle>{serviceName(booking.service_id)}</CardTitle>
-                  <CardDescription>
-                    {formatDateTime(booking.start, timeZone)} —{" "}
-                    {formatDateTime(booking.end, timeZone)}
-                  </CardDescription>
-                  <p className="text-sm text-muted-foreground">
-                    {locationName(booking.location_id)}
+            <div key={booking.id} className="border-b border-border px-4 py-4 last:border-b-0">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-medium">{serviceName(booking.service_id)}</p>
+                    <BookingStatusBadge status={booking.status} />
+                  </div>
+                  <p className="mt-1 font-mono text-sm tabular-nums text-foreground">
+                    {formatDateTime(booking.start, timeZone)}
+                    <span className="text-muted-foreground">
+                      {" — "}
+                      {formatDateTime(booking.end, timeZone)}
+                    </span>
                   </p>
-                </div>
-                <BookingStatusBadge status={booking.status} />
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="text-sm text-muted-foreground">
-                  预约 #{booking.id} · 人数 {booking.party_size}
-                  {booking.contact_name ? ` · ${booking.contact_name}` : ""}
-                  {booking.contact_phone ? ` · ${booking.contact_phone}` : ""}
-                  {booking.customer_phone ? ` · 客户 ${booking.customer_phone}` : ""}
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {locationName(booking.location_id)} · 人数 {booking.party_size}
+                  </p>
+                  <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
+                    #{booking.id}
+                    {booking.contact_name ? ` · ${booking.contact_name}` : ""}
+                    {booking.contact_phone ? ` · ${booking.contact_phone}` : ""}
+                    {booking.customer_phone ? ` · 客户 ${booking.customer_phone}` : ""}
+                  </p>
                 </div>
 
                 {isAdmin ? (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex shrink-0 flex-wrap gap-2">
                     {booking.status === "pending" ? (
                       <>
                         <Button
@@ -168,8 +170,8 @@ export function ConsoleBookingsPage() {
                     ) : null}
                   </div>
                 ) : null}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))}
         </div>
       )}

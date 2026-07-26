@@ -82,7 +82,20 @@ export function createApiClient(authStorage: AuthStorageAdapter) {
       return undefined as T;
     }
 
-    const envelope = (await response.json()) as ApiEnvelope<T>;
+    let envelope: ApiEnvelope<T>;
+    try {
+      envelope = (await response.json()) as ApiEnvelope<T>;
+    } catch {
+      const error = new Error(
+        response.status >= 502
+          ? "无法连接后端服务，请确认 Django 已启动。"
+          : "服务器响应异常",
+      ) as ApiError;
+      error.status = response.status;
+      error.code = -1;
+      error.data = null;
+      throw error;
+    }
 
     if (response.status === 401 && options.auth !== false) {
       const refreshed = await refreshAccessTokenOnce();

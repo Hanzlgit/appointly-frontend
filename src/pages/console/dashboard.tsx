@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { staffDashboardSummaryRetrieve } from "@/api/staff-dashboard";
 import { tenantContextRetrieve } from "@/api/tenant";
 import { Alert } from "@/components/ui/alert";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useConsoleSession } from "@/lib/console-session";
 import { bookingStatusLabel } from "@/lib/booking-status";
 
@@ -22,7 +21,7 @@ export function ConsoleDashboardPage() {
   });
 
   if (dashboardQuery.isLoading) {
-    return <p className="text-muted-foreground">加载看板数据…</p>;
+    return <p className="text-sm text-muted-foreground">加载看板数据…</p>;
   }
 
   if (dashboardQuery.isError) {
@@ -42,109 +41,106 @@ export function ConsoleDashboardPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <section>
-        <h1 className="text-2xl font-bold">经营看板</h1>
-        <p className="text-muted-foreground">
-          参考日期 {data.reference_date}
+    <div className="space-y-8">
+      <header className="page-header">
+        <h1 className="page-title">经营看板</h1>
+        <p className="page-lead">
+          <span className="font-mono tabular-nums">{data.reference_date}</span>
           {timeZone ? ` · ${timeZone}` : ""}
         </p>
-      </section>
+      </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="stat-strip">
         {statCards.map((item) => (
-          <Card key={item.label}>
-            <CardHeader className="pb-2">
-              <CardDescription>{item.label}</CardDescription>
-              <CardTitle className="text-3xl">{item.value}</CardTitle>
-            </CardHeader>
-          </Card>
+          <div key={item.label} className="stat-cell">
+            <p className="stat-label">{item.label}</p>
+            <p className="stat-value">{item.value}</p>
+          </div>
         ))}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>近 7 日预约趋势</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.seven_day_trend.length === 0 ? (
-              <p className="text-sm text-muted-foreground">暂无数据</p>
-            ) : (
-              <ul className="space-y-2 text-sm">
-                {data.seven_day_trend.map((point) => (
-                  <li key={point.date} className="flex justify-between">
-                    <span>{point.date}</span>
-                    <span className="font-medium">{point.count} 单</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+        <DataPanel title="近 7 日预约趋势">
+          {data.seven_day_trend.length === 0 ? (
+            <EmptyHint />
+          ) : (
+            <ul className="divide-y divide-border">
+              {data.seven_day_trend.map((point) => (
+                <li key={point.date} className="flex justify-between py-2 text-sm">
+                  <span className="font-mono tabular-nums text-muted-foreground">{point.date}</span>
+                  <span className="font-mono tabular-nums font-medium">{point.count} 单</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DataPanel>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>热门服务</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.popular_services.length === 0 ? (
-              <p className="text-sm text-muted-foreground">暂无数据</p>
-            ) : (
-              <ul className="space-y-2 text-sm">
-                {data.popular_services.map((item) => (
-                  <li key={item.service_id} className="flex justify-between">
-                    <span>{item.service_name}</span>
-                    <span className="font-medium">{item.count} 单</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+        <DataPanel title="热门服务">
+          {data.popular_services.length === 0 ? (
+            <EmptyHint />
+          ) : (
+            <ul className="divide-y divide-border">
+              {data.popular_services.map((item) => (
+                <li key={item.service_id} className="flex justify-between gap-4 py-2 text-sm">
+                  <span>{item.service_name}</span>
+                  <span className="shrink-0 font-mono tabular-nums font-medium">
+                    {item.count} 单
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DataPanel>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>按地点分布</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.bookings_by_location.length === 0 ? (
-              <p className="text-sm text-muted-foreground">暂无数据</p>
-            ) : (
-              <ul className="space-y-2 text-sm">
-                {data.bookings_by_location.map((item) => (
-                  <li key={item.location_id} className="flex justify-between">
-                    <span>{item.location_name}</span>
-                    <span className="font-medium">{item.count} 单</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+        <DataPanel title="按地点分布">
+          {data.bookings_by_location.length === 0 ? (
+            <EmptyHint />
+          ) : (
+            <ul className="divide-y divide-border">
+              {data.bookings_by_location.map((item) => (
+                <li key={item.location_id} className="flex justify-between gap-4 py-2 text-sm">
+                  <span>{item.location_name}</span>
+                  <span className="shrink-0 font-mono tabular-nums font-medium">
+                    {item.count} 单
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DataPanel>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>资源利用率</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.resource_utilization.length === 0 ? (
-              <p className="text-sm text-muted-foreground">暂无数据</p>
-            ) : (
-              <ul className="space-y-2 text-sm">
-                {data.resource_utilization.map((item) => (
-                  <li key={item.resource_id} className="flex justify-between gap-4">
-                    <span>{item.resource_name}</span>
-                    <span className="font-medium">
-                      {(item.utilization_rate * 100).toFixed(0)}%
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+        <DataPanel title="资源利用率">
+          {data.resource_utilization.length === 0 ? (
+            <EmptyHint />
+          ) : (
+            <ul className="divide-y divide-border">
+              {data.resource_utilization.map((item) => (
+                <li key={item.resource_id} className="flex justify-between gap-4 py-2 text-sm">
+                  <span>{item.resource_name}</span>
+                  <span className="shrink-0 font-mono tabular-nums font-medium">
+                    {(item.utilization_rate * 100).toFixed(0)}%
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DataPanel>
       </div>
     </div>
   );
+}
+
+function DataPanel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="section-panel">
+      <div className="section-panel-header">
+        <h3 className="section-panel-title">{title}</h3>
+      </div>
+      <div className="section-panel-body">{children}</div>
+    </div>
+  );
+}
+
+function EmptyHint() {
+  return <p className="text-sm text-muted-foreground">暂无数据</p>;
 }

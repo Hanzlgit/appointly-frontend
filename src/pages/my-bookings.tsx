@@ -11,13 +11,13 @@ import {
 import { catalogPublicBrowse, tenantContextRetrieve } from "@/api/tenant";
 import { BookingStatusBadge } from "@/components/booking/booking-status-badge";
 import { SlotPicker } from "@/components/booking/slot-picker";
+import { LocationDetail } from "@/components/catalog/location-detail";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { authIsLoggedIn } from "@/lib/auth-storage";
 import { bookingCanCancel, bookingCanReschedule } from "@/lib/booking-status";
 import type { BookableSlot } from "@/lib/booking-slots";
-import { createIdempotencyKey, formatDateTime } from "@/lib/utils";
+import { createIdempotencyKey, formatBookingWhen } from "@/lib/utils";
 import type { ApiError, Booking } from "@/types/api";
 
 /** 我的预约列表页。 */
@@ -91,22 +91,20 @@ export function MyBookingsPage() {
   if (!authIsLoggedIn()) {
     const redirect = encodeURIComponent(`/t/${tenantSlug}/bookings`);
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>需要登录</CardTitle>
-          <CardDescription>登录后可查看与管理您的预约。</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button asChild>
-            <Link to={`/t/${tenantSlug}/login?redirect=${redirect}`}>去登录</Link>
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <header className="page-header">
+          <h1 className="page-title">需要登录</h1>
+          <p className="page-lead">登录后可查看与管理预约。</p>
+        </header>
+        <Button asChild>
+          <Link to={`/t/${tenantSlug}/login?redirect=${redirect}`}>去登录</Link>
+        </Button>
+      </div>
     );
   }
 
   if (bookingsQuery.isLoading) {
-    return <p className="text-muted-foreground">加载中…</p>;
+    return <p className="text-sm text-muted-foreground">正在加载预约…</p>;
   }
 
   if (bookingsQuery.isError) {
@@ -121,52 +119,52 @@ export function MyBookingsPage() {
   const serviceName = (serviceId: number) =>
     services.find((service) => service.id === serviceId)?.name ?? `服务 #${serviceId}`;
 
-  const locationName = (locationId: number) =>
-    locations.find((location) => location.id === locationId)?.name ?? `地点 #${locationId}`;
+  const locationById = (locationId: number) =>
+    locations.find((location) => location.id === locationId);
 
   return (
-    <div className="space-y-6">
-      <section>
-        <h1 className="text-2xl font-bold">我的预约</h1>
-        <p className="text-muted-foreground">查看状态、改期或取消预约。</p>
-      </section>
+    <div className="space-y-8">
+      <header className="page-header">
+        <h1 className="page-title">我的预约</h1>
+        <p className="page-lead">查看状态、改期或取消。</p>
+      </header>
 
       {bookings.length === 0 ? (
         <Alert>暂无预约记录。</Alert>
       ) : (
-        <div className="grid gap-4">
+        <div className="section-panel">
           {bookings.map((booking) => {
             const isRescheduling = reschedulingBooking?.id === booking.id;
             const canModify = bookingCanCancel(booking.status);
             const canReschedule = bookingCanReschedule(booking.status);
 
-            return (
-              <Card key={booking.id}>
-                <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
-                  <div className="space-y-1">
-                    <CardTitle>{serviceName(booking.service_id)}</CardTitle>
-                    <CardDescription>
-                      {formatDateTime(booking.start, timeZone)} —{" "}
-                      {formatDateTime(booking.end, timeZone)}
-                    </CardDescription>
-                    <p className="text-sm text-muted-foreground">{locationName(booking.location_id)}</p>
-                  </div>
-                  <BookingStatusBadge status={booking.status} />
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="text-sm text-muted-foreground">
-                    预约 #{booking.id} · 人数 {booking.party_size}
-                    {booking.contact_name ? ` · ${booking.contact_name}` : ""}
-                    {booking.rescheduled_from_id ? (
-                      <span> · 改期自 #{booking.rescheduled_from_id}</span>
-                    ) : null}
-                    {booking.rescheduled_to_id ? (
-                      <span> · 已改至 #{booking.rescheduled_to_id}</span>
-                    ) : null}
-                  </div>
+            const bookingLocation = locationById(booking.location_id);
 
+            return (
+              <div key={booking.id} className="border-b border-border last:border-b-0">
+                <div className="list-row flex-col items-stretch gap-3 sm:flex-row sm:items-start">
+                  <div className="font-mono text-xs leading-relaxed tabular-nums text-muted-foreground sm:w-40 sm:shrink-0">
+                    {formatBookingWhen(booking.start, booking.end, timeZone)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-medium">{serviceName(booking.service_id)}</p>
+                      <BookingStatusBadge status={booking.status} />
+                    </div>
+                    <div className="mt-1">
+                      <LocationDetail
+                        location={bookingLocation}
+                        fallback={`地点 #${booking.location_id}`}
+                      />
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">人数 {booking.party_size}</p>
+                    <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
+                      #{booking.id}
+                      {booking.contact_name ? ` · ${booking.contact_name}` : ""}
+                    </p>
+                  </div>
                   {canModify ? (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex shrink-0 gap-2 sm:flex-col sm:items-end">
                       {canReschedule ? (
                         <Button
                           variant="outline"
@@ -185,40 +183,41 @@ export function MyBookingsPage() {
                         disabled={cancelMutation.isPending || rescheduleMutation.isPending}
                         onClick={() => cancelMutation.mutate(booking.id)}
                       >
-                        取消预约
+                        取消
                       </Button>
                     </div>
                   ) : null}
+                </div>
 
-                  {isRescheduling ? (
-                    <div className="space-y-4 rounded-lg border border-border/80 bg-muted/30 p-4">
-                      <p className="text-sm font-medium">选择新的预约时间</p>
-                      {rescheduleError ? (
-                        <Alert variant="destructive">{rescheduleError}</Alert>
-                      ) : null}
-                      <SlotPicker
-                        tenantSlug={tenantSlug}
-                        serviceId={booking.service_id}
-                        locationId={booking.location_id}
-                        resourceId={booking.resource_id}
-                        timeZone={timeZone}
-                        selectedDate={rescheduleDate}
-                        onSelectedDateChange={setRescheduleDate}
-                        selectedSlot={rescheduleSlot}
-                        onSelectedSlotChange={setRescheduleSlot}
-                        excludeTimeSlotId={booking.time_slot_id}
-                      />
-                      <Button
-                        className="w-full"
-                        disabled={!rescheduleSlot?.time_slot_id || rescheduleMutation.isPending}
-                        onClick={() => rescheduleMutation.mutate()}
-                      >
-                        确认改期
-                      </Button>
-                    </div>
-                  ) : null}
-                </CardContent>
-              </Card>
+                {isRescheduling ? (
+                  <div className="space-y-4 border-t border-border bg-muted/40 px-4 py-4">
+                    <p className="text-sm font-medium">选择新的时间</p>
+                    {rescheduleError ? (
+                      <Alert variant="destructive">{rescheduleError}</Alert>
+                    ) : null}
+                    <SlotPicker
+                      tenantSlug={tenantSlug}
+                      serviceId={booking.service_id}
+                      locationId={booking.location_id}
+                      location={bookingLocation}
+                      resourceId={booking.resource_id}
+                      timeZone={timeZone}
+                      selectedDate={rescheduleDate}
+                      onSelectedDateChange={setRescheduleDate}
+                      selectedSlot={rescheduleSlot}
+                      onSelectedSlotChange={setRescheduleSlot}
+                      excludeTimeSlotId={booking.time_slot_id}
+                    />
+                    <Button
+                      className="w-full"
+                      disabled={!rescheduleSlot?.time_slot_id || rescheduleMutation.isPending}
+                      onClick={() => rescheduleMutation.mutate()}
+                    >
+                      确认改期
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
             );
           })}
         </div>

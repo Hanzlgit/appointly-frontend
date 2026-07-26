@@ -4,8 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 
 import { schedulingAvailabilityQuery } from "@/api/scheduling";
 import { Alert } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   availabilityToBookableSlots,
@@ -13,12 +11,14 @@ import {
   filterUpcomingSlots,
   type BookableSlot,
 } from "@/lib/booking-slots";
-import { formatDateTime } from "@/lib/utils";
+import { cn, formatDateTime } from "@/lib/utils";
+import type { CatalogPublicLocation } from "@/types/api";
 
 interface SlotPickerProps {
   tenantSlug: string;
   serviceId: number;
   locationId?: number | null;
+  location?: CatalogPublicLocation | null;
   /** 传入时使用 resource 模式，返回带 time_slot_id 的时段（改期必需）。 */
   resourceId?: number | null;
   timeZone?: string;
@@ -34,6 +34,7 @@ export function SlotPicker({
   tenantSlug,
   serviceId,
   locationId = null,
+  location = null,
   resourceId = null,
   timeZone,
   selectedDate,
@@ -72,54 +73,59 @@ export function SlotPicker({
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>选择日期</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="section-panel">
+        <div className="section-panel-header">
+          <h3 className="section-panel-title">日期</h3>
+        </div>
+        <div className="section-panel-body">
           <Input
             type="date"
+            className="max-w-xs font-mono tabular-nums"
             value={selectedDate}
             onChange={(event) => {
               onSelectedDateChange(event.target.value);
               onSelectedSlotChange(null);
             }}
           />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>可用时段</CardTitle>
-          <CardDescription>点击选择合适的时间。</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <div className="section-panel">
+        <div className="section-panel-header">
+          <h3 className="section-panel-title">
+            可用时段
+            {location ? (
+              <span className="ml-2 font-normal text-muted-foreground">· {location.name}</span>
+            ) : null}
+          </h3>
+        </div>
+        <div className="section-panel-body">
           {availabilityQuery.isLoading ? (
-            <p className="text-muted-foreground">查询可用时段中…</p>
+            <p className="text-sm text-muted-foreground">查询可用时段…</p>
           ) : slots.length === 0 ? (
             <Alert>
-              该日期暂无可用时段。若选的是今天，可能时段已过，请尝试选择明天或之后的日期。
+              该日期暂无可用时段。若选的是今天，时段可能已过，请换一天。
             </Alert>
           ) : (
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="flex flex-wrap gap-2">
               {slots.map((slot) => {
                 const isSelected = selectedSlot?.key === slot.key;
                 return (
-                  <Button
+                  <button
                     key={slot.key}
                     type="button"
-                    variant={isSelected ? "default" : "outline"}
-                    className="justify-start"
+                    className={cn("slot-chip", isSelected && "slot-chip-selected")}
                     onClick={() => onSelectedSlotChange(slot)}
                   >
-                    {formatDateTime(slot.start, timeZone)} · 余 {slot.remaining_capacity}
-                  </Button>
+                    {formatDateTime(slot.start, timeZone)}
+                    <span className="ml-1.5 opacity-70">余{slot.remaining_capacity}</span>
+                  </button>
                 );
               })}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

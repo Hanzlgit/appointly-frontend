@@ -31,6 +31,7 @@ export interface CatalogPublicService {
   duration_minutes: number;
   price_cents: number;
   currency: string;
+  location_ids: number[];
 }
 
 export interface CatalogPublicBrowse {

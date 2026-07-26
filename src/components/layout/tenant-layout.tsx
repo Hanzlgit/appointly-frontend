@@ -20,38 +20,38 @@ export function TenantLayout() {
   const tenantName = tenantQuery.data?.name ?? tenantSlug;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-secondary/40 to-background">
-      <header className="border-b border-border/80 bg-background/90 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border bg-card">
+        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3.5">
           <div>
-            <Link to={`/t/${tenantSlug}`} className="text-lg font-semibold text-foreground">
+            <Link to={`/t/${tenantSlug}`} className="text-base font-semibold tracking-tight">
               {tenantName}
             </Link>
-            <p className="text-sm text-muted-foreground">在线预约</p>
+            <p className="text-xs text-muted-foreground">预约</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <Button asChild variant="ghost" size="sm">
               <Link to={`/t/${tenantSlug}/bookings`}>
-                <CalendarDays className="size-4" />
+                <CalendarDays className="size-3.5" />
                 我的预约
               </Link>
             </Button>
             {isLoggedIn ? (
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={() => {
                   authTokensClear();
                   window.location.reload();
                 }}
               >
-                <LogOut className="size-4" />
+                <LogOut className="size-3.5" />
                 退出
               </Button>
             ) : (
-              <Button asChild variant="outline" size="sm">
+              <Button asChild variant="ghost" size="sm">
                 <Link to={`/t/${tenantSlug}/login`}>
-                  <LogIn className="size-4" />
+                  <LogIn className="size-3.5" />
                   登录
                 </Link>
               </Button>

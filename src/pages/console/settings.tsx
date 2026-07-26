@@ -7,7 +7,6 @@ import {
 } from "@/api/staff-catalog";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useConsoleSession } from "@/lib/console-session";
@@ -59,7 +58,7 @@ export function ConsoleSettingsPage() {
   });
 
   if (settingsQuery.isLoading || !form) {
-    return <p className="text-muted-foreground">加载预约规则…</p>;
+    return <p className="text-sm text-muted-foreground">加载预约规则…</p>;
   }
 
   if (settingsQuery.isError) {
@@ -67,27 +66,27 @@ export function ConsoleSettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <section>
-        <h1 className="text-2xl font-bold">预约规则</h1>
-        <p className="text-muted-foreground">配置客户预约与取消的业务限制。</p>
-      </section>
+    <div className="space-y-8">
+      <header className="page-header">
+        <h1 className="page-title">预约规则</h1>
+        <p className="page-lead">客户预约与取消的业务限制。</p>
+      </header>
 
       {message ? <Alert>{message}</Alert> : null}
       {error ? <Alert variant="destructive">{error}</Alert> : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>时间与容量</CardTitle>
-          <CardDescription>影响客户可预约的时间窗口与数量限制。</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
+      <div className="section-panel">
+        <div className="section-panel-header">
+          <h3 className="section-panel-title">时间与容量</h3>
+        </div>
+        <div className="section-panel-body grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="min-advance">最少提前预约（分钟）</Label>
             <Input
               id="min-advance"
               type="number"
               min={0}
+              className="font-mono tabular-nums"
               value={form.min_advance_minutes}
               onChange={(e) =>
                 setForm({ ...form, min_advance_minutes: Number(e.target.value) })
@@ -100,6 +99,7 @@ export function ConsoleSettingsPage() {
               id="max-window"
               type="number"
               min={1}
+              className="font-mono tabular-nums"
               value={form.max_booking_window_days}
               onChange={(e) =>
                 setForm({ ...form, max_booking_window_days: Number(e.target.value) })
@@ -112,6 +112,7 @@ export function ConsoleSettingsPage() {
               id="pending-retention"
               type="number"
               min={1}
+              className="font-mono tabular-nums"
               value={form.pending_retention_minutes}
               onChange={(e) =>
                 setForm({ ...form, pending_retention_minutes: Number(e.target.value) })
@@ -124,6 +125,7 @@ export function ConsoleSettingsPage() {
               id="cancel-deadline"
               type="number"
               min={0}
+              className="font-mono tabular-nums"
               value={form.cancel_deadline_minutes}
               onChange={(e) =>
                 setForm({ ...form, cancel_deadline_minutes: Number(e.target.value) })
@@ -136,6 +138,7 @@ export function ConsoleSettingsPage() {
               id="future-limit"
               type="number"
               min={1}
+              className="font-mono tabular-nums"
               value={form.future_booking_limit}
               onChange={(e) =>
                 setForm({ ...form, future_booking_limit: Number(e.target.value) })
@@ -146,7 +149,7 @@ export function ConsoleSettingsPage() {
             <Label htmlFor="confirmation-mode">确认模式</Label>
             <select
               id="confirmation-mode"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="flex h-9 w-full rounded-sm border border-input bg-background px-3 py-2 text-sm"
               value={form.confirmation_mode}
               onChange={(e) =>
                 setForm({
@@ -159,8 +162,8 @@ export function ConsoleSettingsPage() {
               <option value="manual">人工确认</option>
             </select>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <Button disabled={saveMutation.isPending} onClick={() => saveMutation.mutate()}>
         保存设置

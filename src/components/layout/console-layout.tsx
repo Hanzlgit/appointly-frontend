@@ -1,12 +1,6 @@
 import { Link, Navigate, Outlet, useLocation, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import {
-  CalendarCog,
-  LayoutDashboard,
-  LogOut,
-  Package,
-  Settings2,
-} from "lucide-react";
+import { CalendarCog, LayoutDashboard, LogOut, Package, Settings2 } from "lucide-react";
 
 import { staffTenantMembershipRetrieve } from "@/api/staff-auth";
 import { tenantContextRetrieve } from "@/api/tenant";
@@ -42,7 +36,7 @@ export function ConsoleAuthGuard() {
   });
 
   if (membershipQuery.isLoading) {
-    return <p className="p-8 text-muted-foreground">验证身份中…</p>;
+    return <p className="p-8 text-sm text-muted-foreground">验证身份中…</p>;
   }
 
   if (membershipQuery.isError) {
@@ -76,62 +70,62 @@ function ConsoleLayout({ role }: ConsoleLayoutProps) {
   const basePath = `/t/${tenantSlug}/console`;
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border bg-card">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div>
-            <Link to={basePath} className="text-lg font-semibold">
+            <Link to={basePath} className="text-base font-semibold tracking-tight">
               {tenantName}
             </Link>
-            <p className="text-sm text-muted-foreground">
-              管理控制台 · {staffRoleLabel(role)}
-            </p>
+            <p className="text-xs text-muted-foreground">控制台 · {staffRoleLabel(role)}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <Button asChild variant="ghost" size="sm">
               <Link to={`/t/${tenantSlug}`}>客户预约页</Link>
             </Button>
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={() => {
                 staffAuthTokensClear();
                 window.location.href = `/t/${tenantSlug}/console/login`;
               }}
             >
-              <LogOut className="size-4" />
+              <LogOut className="size-3.5" />
               退出
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 lg:grid-cols-[220px_1fr]">
-        <nav className="space-y-1">
-          {NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin).map((item) => {
-            const Icon = item.icon;
-            const href = `${basePath}/${item.to}`;
-            const isActive = location.pathname.startsWith(href);
+      <div className="mx-auto grid max-w-6xl gap-0 px-4 lg:grid-cols-[200px_1fr]">
+        <nav className="border-b border-border py-4 lg:border-b-0 lg:border-r lg:py-6 lg:pr-6">
+          <div className="flex gap-1 overflow-x-auto lg:flex-col lg:gap-0">
+            {NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin).map((item) => {
+              const Icon = item.icon;
+              const href = `${basePath}/${item.to}`;
+              const isActive = location.pathname.startsWith(href);
 
-            return (
-              <Link
-                key={item.to}
-                to={href}
-                className={cn(
-                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                )}
-              >
-                <Icon className="size-4" />
-                {item.label}
-              </Link>
-            );
-          })}
+              return (
+                <Link
+                  key={item.to}
+                  to={href}
+                  className={cn(
+                    "flex shrink-0 items-center gap-2 border-l-2 px-3 py-2 text-sm transition-colors",
+                    isActive
+                      ? "border-primary font-medium text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon className="size-3.5" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
         </nav>
 
-        <main className="min-w-0">
+        <main className="min-w-0 py-6 lg:pl-8">
           <Outlet />
         </main>
       </div>

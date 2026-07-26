@@ -1,69 +1,160 @@
-import { Link, useParams } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Clock3 } from "lucide-react";
 
 import { catalogPublicBrowse } from "@/api/tenant";
+import { LocationDetail } from "@/components/catalog/location-detail";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatPrice } from "@/lib/utils";
+import { findLocation, serviceCountByLocation, servicesForLocation } from "@/lib/catalog";
+import { apiErrorMessage } from "@/lib/api-error";
+import { cn, formatPrice } from "@/lib/utils";
 
-/** 租户首页：展示可预约服务列表。 */
+/** 租户首页：先选门店，再选服务。 */
 export function TenantHomePage() {
   const { tenantSlug = "" } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const locationIdParam = searchParams.get("locationId");
+  const selectedLocationId = locationIdParam ? Number(locationIdParam) : null;
 
   const catalogQuery = useQuery({
     queryKey: ["catalog-public", tenantSlug],
     queryFn: () => catalogPublicBrowse(tenantSlug),
   });
 
+  const locations = catalogQuery.data?.locations ?? [];
+  const services = catalogQuery.data?.services ?? [];
+  const selectedLocation =
+    selectedLocationId != null ? findLocation(locations, selectedLocationId) : undefined;
+  const storeServices =
+    selectedLocationId != null ? servicesForLocation(services, selectedLocationId) : [];
+
+  useEffect(() => {
+    if (catalogQuery.isLoading || locations.length !== 1) {
+      return;
+    }
+    const onlyLocation = locations[0]!;
+    if (selectedLocationId === onlyLocation.id) {
+      return;
+    }
+    setSearchParams({ locationId: String(onlyLocation.id) }, { replace: true });
+  }, [catalogQuery.isLoading, locations, selectedLocationId, setSearchParams]);
+
   if (catalogQuery.isLoading) {
-    return <p className="text-muted-foreground">加载中…</p>;
+    return <p className="text-sm text-muted-foreground">正在加载…</p>;
   }
 
   if (catalogQuery.isError) {
-    return <Alert variant="destructive">无法加载服务列表，请确认租户 slug 是否正确。</Alert>;
+    return (
+      <Alert variant="destructive">
+        {apiErrorMessage(catalogQuery.error, "无法加载预约信息。")}
+      </Alert>
+    );
   }
 
-  const { services, locations } = catalogQuery.data!;
+  if (locations.length === 0) {
+    return (
+      <div className="space-y-6">
+        <header className="page-header">
+          <h1 className="page-title">在线预约</h1>
+        </header>
+        <Alert>暂无可预约门店。</Alert>
+      </div>
+    );
+  }
+
+  if (selectedLocation) {
+    return (
+      <div className="space-y-8">
+        <header className="page-header">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">当前门店</p>
+              <h1 className="page-title">{selectedLocation.name}</h1>
+              {selectedLocation.address ? (
+                <p className="page-lead">{selectedLocation.address}</p>
+              ) : null}
+            </div>
+            {locations.length > 1 ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="shrink-0"
+                onClick={() => setSearchParams({})}
+              >
+                换门店
+              </Button>
+            ) : null}
+          </div>
+        </header>
+
+        <section className="space-y-3">
+          <h2 className="text-sm font-medium text-foreground">选择服务</h2>
+          {storeServices.length === 0 ? (
+            <Alert>该门店暂无可预约服务。</Alert>
+          ) : (
+            <div className="section-panel">
+              {storeServices.map((service) => (
+                <div key={service.id} className="list-row items-start">
+                  <span className="time-rail pt-0.5">{service.duration_minutes}′</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">{service.name}</p>
+                    {service.description ? (
+                      <p className="mt-0.5 text-sm text-muted-foreground">{service.description}</p>
+                    ) : null}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3 pt-0.5">
+                    <span className="font-mono text-sm tabular-nums text-muted-foreground">
+                      {formatPrice(service.price_cents, service.currency)}
+                    </span>
+                    <Button asChild size="sm">
+                      <Link
+                        to={`/t/${tenantSlug}/book?serviceId=${service.id}&locationId=${selectedLocation.id}`}
+                      >
+                        预约
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <section className="space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight">选择服务</h1>
-        <p className="text-muted-foreground">
-          {locations.length > 0
-            ? `共有 ${locations.length} 个地点、${services.length} 项服务可预约。`
-            : "浏览服务并开始预约。"}
-        </p>
-      </section>
+    <div className="space-y-8">
+      <header className="page-header">
+        <h1 className="page-title">选择门店</h1>
+        <p className="page-lead">先选门店，再挑选服务与时间。</p>
+      </header>
 
-      {services.length === 0 ? (
-        <Alert>暂无可预约服务。</Alert>
-      ) : (
-        <div className="grid gap-4">
-          {services.map((service) => (
-            <Card key={service.id}>
-              <CardHeader>
-                <CardTitle>{service.name}</CardTitle>
-                <CardDescription>{service.description || "暂无描述"}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <span className="inline-flex items-center gap-1">
-                    <Clock3 className="size-4" />
-                    {service.duration_minutes} 分钟
-                  </span>
-                  <span>{formatPrice(service.price_cents, service.currency)}</span>
-                </div>
-                <Button asChild>
-                  <Link to={`/t/${tenantSlug}/book?serviceId=${service.id}`}>立即预约</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      <div className="section-panel">
+        {locations.map((location) => {
+          const serviceCount = serviceCountByLocation(services, location.id);
+          return (
+            <button
+              key={location.id}
+              type="button"
+              className={cn(
+                "list-row w-full items-start text-left transition-colors hover:bg-muted/40",
+                serviceCount === 0 && "opacity-60",
+              )}
+              disabled={serviceCount === 0}
+              onClick={() => setSearchParams({ locationId: String(location.id) })}
+            >
+              <div className="min-w-0 flex-1">
+                <LocationDetail location={location} />
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {serviceCount > 0 ? `${serviceCount} 项服务可预约` : "暂无可预约服务"}
+                </p>
+              </div>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
