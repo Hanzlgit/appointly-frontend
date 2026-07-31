@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Package, SearchX } from "lucide-react";
+import { ArrowLeft, CalendarClock, Package, SearchX } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import {
@@ -517,6 +517,14 @@ function LocationResourcesPanel({
                       <Badge variant={resource.is_active ? "default" : "secondary"}>
                         {resource.is_active ? "启用" : "停用"}
                       </Badge>
+                      <Link
+                        to={`/t/${tenantSlug}/console/catalog/locations/${locationId}/resources/${resource.id}/schedules`}
+                      >
+                        <Button size="sm" variant="outline">
+                          <CalendarClock className="mr-1 size-3.5" />
+                          排班
+                        </Button>
+                      </Link>
                       <Button size="sm" variant="outline" onClick={() => openEdit(resource)}>
                         编辑
                       </Button>

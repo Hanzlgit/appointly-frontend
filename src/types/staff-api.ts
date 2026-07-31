@@ -124,3 +124,31 @@ export interface BookingSettings {
   confirmation_mode: "auto" | "manual";
   updated_at: string;
 }
+
+export interface ScheduleRule {
+  id: number;
+  location_id: number;
+  resource_id: number;
+  days_of_week: number[];
+  start_time: string;
+  end_time: string;
+  slot_interval_minutes: number;
+  capacity: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScheduleRuleList {
+  rules: ScheduleRule[];
+}
+
+export interface ScheduleRuleCreatePayload {
+  location_id: number;
+  resource_id: number;
+  days_of_week: number[];
+  start_time: string;
+  end_time: string;
+  slot_interval_minutes: 15 | 30 | 45 | 60;
+  capacity: number;
+}
