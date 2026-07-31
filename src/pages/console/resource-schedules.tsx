@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { formatISO, startOfDay } from "date-fns";
 import { ArrowLeft, CalendarClock, SearchX } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import { staffCatalogLocationResourceList, staffCatalogLocationRetrieve } from "@/api/staff-catalog";
-import { staffScheduleRuleCreate, staffScheduleRuleList } from "@/api/staff-scheduling";
+import {
+  staffScheduleRuleCreate,
+  staffScheduleRuleList,
+  staffScheduleRuleUpdate,
+} from "@/api/staff-scheduling";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,7 +42,7 @@ import { usePaginatedList } from "@/hooks/use-paginated-list";
 import { useConsoleSession } from "@/lib/console-session";
 import { matchesFields } from "@/lib/list-filters";
 import type { ApiError } from "@/types/api";
-import type { ScheduleRule, ScheduleRuleCreatePayload } from "@/types/staff-api";
+import type { ScheduleRule, ScheduleRuleCreatePayload, ScheduleRuleUpdatePayload } from "@/types/staff-api";
 
 const WEEKDAY_OPTIONS = [
   { value: 0, label: "周一" },
@@ -102,6 +107,14 @@ function formatDaysOfWeek(days: number[]): string {
 /** 格式化时间为 HH:mm 展示。 */
 function formatTimeLabel(timeValue: string): string {
   return timeValue.slice(0, 5);
+}
+
+function toTimeInputValue(timeValue: string): string {
+  return timeValue.slice(0, 5);
+}
+
+function todayLocalDateString(): string {
+  return formatISO(startOfDay(new Date()), { representation: "date" });
 }
 
 function filterByActive(rules: ScheduleRule[], filter: ActiveFilter): ScheduleRule[] {
@@ -326,6 +339,237 @@ function ScheduleRuleCreateDialog({
   );
 }
 
+interface ScheduleRuleEditDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  tenantSlug: string;
+  rule: ScheduleRule | null;
+  onSuccess: () => void;
+}
+
+function ScheduleRuleEditDialog({
+  open,
+  onOpenChange,
+  tenantSlug,
+  rule,
+  onSuccess,
+}: ScheduleRuleEditDialogProps) {
+  const [effectiveDate, setEffectiveDate] = useState(todayLocalDateString());
+  const [daysOfWeek, setDaysOfWeek] = useState<number[]>([]);
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("18:00");
+  const [slotIntervalMinutes, setSlotIntervalMinutes] = useState<15 | 30 | 45 | 60>(30);
+  const [capacity, setCapacity] = useState("1");
+  const [fieldError, setFieldError] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open || !rule) {
+      return;
+    }
+    setEffectiveDate(todayLocalDateString());
+    setDaysOfWeek(rule.days_of_week);
+    setStartTime(toTimeInputValue(rule.start_time));
+    setEndTime(toTimeInputValue(rule.end_time));
+    setSlotIntervalMinutes(rule.slot_interval_minutes as 15 | 30 | 45 | 60);
+    setCapacity(String(rule.capacity));
+    setFieldError(null);
+    setApiError(null);
+  }, [open, rule]);
+
+  const divisibilityError = scheduleWindowDivisibilityError(
+    startTime,
+    endTime,
+    slotIntervalMinutes,
+  );
+
+  const toggleDay = (day: number, checked: boolean) => {
+    setDaysOfWeek((current) => {
+      if (checked) {
+        return [...new Set([...current, day])].sort((a, b) => a - b);
+      }
+      return current.filter((value) => value !== day);
+    });
+  };
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!rule) {
+        throw new Error("无规则数据");
+      }
+      if (daysOfWeek.length === 0) {
+        throw new Error("VALIDATION:days");
+      }
+      const parsedCapacity = Number(capacity);
+      if (!Number.isFinite(parsedCapacity) || parsedCapacity < 1) {
+        throw new Error("VALIDATION:capacity");
+      }
+      const windowError = scheduleWindowDivisibilityError(
+        startTime,
+        endTime,
+        slotIntervalMinutes,
+      );
+      if (windowError) {
+        throw new Error(`VALIDATION:window:${windowError}`);
+      }
+
+      const payload: ScheduleRuleUpdatePayload = {
+        effective_date: effectiveDate,
+        days_of_week: daysOfWeek,
+        start_time: startTime,
+        end_time: endTime,
+        slot_interval_minutes: slotIntervalMinutes,
+        capacity: parsedCapacity,
+      };
+      return staffScheduleRuleUpdate(tenantSlug, rule.id, payload);
+    },
+    onSuccess: () => {
+      onSuccess();
+      onOpenChange(false);
+    },
+    onError: (err: ApiError | Error) => {
+      if (err.message.startsWith("VALIDATION:")) {
+        const detail = err.message.split(":").slice(2).join(":");
+        if (err.message === "VALIDATION:days") {
+          setFieldError("至少选择一个生效星期");
+        } else if (err.message === "VALIDATION:capacity") {
+          setFieldError("容量必须为大于 0 的整数");
+        } else {
+          setFieldError(detail || "请检查表单输入");
+        }
+        setApiError(null);
+        return;
+      }
+      setFieldError(null);
+      setApiError((err as ApiError).message ?? err.message);
+    },
+  });
+
+  if (!rule) {
+    return null;
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>编辑排班规则</DialogTitle>
+          <DialogDescription>
+            变更从生效日期起关闭旧空闲时段并按新配置重新生成；若生效日及之后存在有效预约则无法保存。
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="schedule-effective-date">生效日期</Label>
+            <Input
+              id="schedule-effective-date"
+              type="date"
+              className="max-w-xs font-mono tabular-nums"
+              value={effectiveDate}
+              onChange={(event) => setEffectiveDate(event.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>生效星期</Label>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {WEEKDAY_OPTIONS.map((option) => (
+                <label
+                  key={option.value}
+                  className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
+                >
+                  <Checkbox
+                    checked={daysOfWeek.includes(option.value)}
+                    onCheckedChange={(checked) => toggleDay(option.value, checked === true)}
+                  />
+                  {option.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="edit-schedule-start-time">开始时间</Label>
+              <Input
+                id="edit-schedule-start-time"
+                type="time"
+                value={startTime}
+                onChange={(event) => setStartTime(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-schedule-end-time">结束时间</Label>
+              <Input
+                id="edit-schedule-end-time"
+                type="time"
+                value={endTime}
+                onChange={(event) => setEndTime(event.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>时段间隔</Label>
+              <Select
+                value={String(slotIntervalMinutes)}
+                onValueChange={(value) =>
+                  setSlotIntervalMinutes(Number(value) as 15 | 30 | 45 | 60)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SLOT_INTERVAL_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={String(option.value)}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-schedule-capacity">每时段容量</Label>
+              <Input
+                id="edit-schedule-capacity"
+                type="number"
+                min={1}
+                value={capacity}
+                onChange={(event) => setCapacity(event.target.value)}
+              />
+            </div>
+          </div>
+
+          {divisibilityError ? (
+            <p className="text-sm text-destructive">{divisibilityError}</p>
+          ) : null}
+          {fieldError ? <p className="text-sm text-destructive">{fieldError}</p> : null}
+          {apiError ? (
+            <Alert variant="destructive">
+              <AlertDescription>{apiError}</AlertDescription>
+            </Alert>
+          ) : null}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" disabled={updateMutation.isPending} onClick={() => onOpenChange(false)}>
+            取消
+          </Button>
+          <Button
+            disabled={updateMutation.isPending || Boolean(divisibilityError)}
+            onClick={() => updateMutation.mutate()}
+          >
+            {updateMutation.isPending ? "保存中…" : "保存变更"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /** 资源排班规则列表页。 */
 export function ConsoleResourceSchedulesPage() {
   const { tenantSlug } = useConsoleSession();
@@ -336,6 +580,9 @@ export function ConsoleResourceSchedulesPage() {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingRule, setEditingRule] = useState<ScheduleRule | null>(null);
+  const [togglingRuleId, setTogglingRuleId] = useState<number | null>(null);
+  const [toggleError, setToggleError] = useState<string | null>(null);
   const debouncedSearch = useDebouncedValue(search);
 
   const locationQuery = useQuery({
@@ -361,6 +608,29 @@ export function ConsoleResourceSchedulesPage() {
       queryKey: ["staff-schedule-rules", tenantSlug, parsedResourceId],
     });
   };
+
+  const toggleMutation = useMutation({
+    mutationFn: async (rule: ScheduleRule) => {
+      const payload: ScheduleRuleUpdatePayload = {
+        effective_date: todayLocalDateString(),
+        is_active: !rule.is_active,
+      };
+      return staffScheduleRuleUpdate(tenantSlug, rule.id, payload);
+    },
+    onMutate: (rule) => {
+      setTogglingRuleId(rule.id);
+      setToggleError(null);
+    },
+    onSuccess: () => {
+      invalidateRules();
+    },
+    onError: (err: ApiError) => {
+      setToggleError(err.message);
+    },
+    onSettled: () => {
+      setTogglingRuleId(null);
+    },
+  });
 
   const resource = resourcesQuery.data?.resources.find((item) => item.id === parsedResourceId);
 
@@ -497,6 +767,12 @@ export function ConsoleResourceSchedulesPage() {
               ]}
             />
 
+            {toggleError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{toggleError}</AlertDescription>
+              </Alert>
+            ) : null}
+
             {filtered.length === 0 ? (
               <EmptyState
                 icon={SearchX}
@@ -532,9 +808,26 @@ export function ConsoleResourceSchedulesPage() {
                             容量 {rule.capacity}
                           </p>
                         </div>
-                        <Badge variant={rule.is_active ? "default" : "secondary"}>
-                          {rule.is_active ? "启用" : "停用"}
-                        </Badge>
+                        <div className="flex shrink-0 flex-wrap items-center gap-2">
+                          <Badge variant={rule.is_active ? "default" : "secondary"}>
+                            {rule.is_active ? "启用" : "停用"}
+                          </Badge>
+                          <Button size="sm" variant="outline" onClick={() => setEditingRule(rule)}>
+                            编辑
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={togglingRuleId === rule.id}
+                            onClick={() => toggleMutation.mutate(rule)}
+                          >
+                            {togglingRuleId === rule.id
+                              ? "处理中…"
+                              : rule.is_active
+                                ? "停用"
+                                : "启用"}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -556,6 +849,17 @@ export function ConsoleResourceSchedulesPage() {
             tenantSlug={tenantSlug}
             locationId={parsedLocationId}
             resourceId={parsedResourceId}
+            onSuccess={invalidateRules}
+          />
+          <ScheduleRuleEditDialog
+            open={editingRule !== null}
+            onOpenChange={(open) => {
+              if (!open) {
+                setEditingRule(null);
+              }
+            }}
+            tenantSlug={tenantSlug}
+            rule={editingRule}
             onSuccess={invalidateRules}
           />
         </>

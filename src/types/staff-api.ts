@@ -152,3 +152,13 @@ export interface ScheduleRuleCreatePayload {
   slot_interval_minutes: 15 | 30 | 45 | 60;
   capacity: number;
 }
+
+export interface ScheduleRuleUpdatePayload {
+  effective_date: string;
+  days_of_week?: number[];
+  start_time?: string;
+  end_time?: string;
+  slot_interval_minutes?: 15 | 30 | 45 | 60;
+  capacity?: number;
+  is_active?: boolean;
+}
