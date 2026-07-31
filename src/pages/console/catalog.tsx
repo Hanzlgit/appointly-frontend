@@ -1,6 +1,15 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Package, SearchX } from "lucide-react";
+
+import {
+  CatalogLocationDeleteDialog,
+  CatalogLocationFormDialog,
+  CatalogResourceDeleteDialog,
+  CatalogResourceFormDialog,
+  CatalogServiceDeleteDialog,
+  CatalogServiceFormDialog,
+} from "@/pages/console/catalog-forms";
 
 import {
   staffCatalogLocationList,
@@ -36,6 +45,7 @@ const ACTIVE_FILTER_OPTIONS = [
 /** 服务目录概览（Admin）。 */
 export function ConsoleCatalogPage() {
   const { tenantSlug } = useConsoleSession();
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<CatalogTab>("locations");
 
   const locationsQuery = useQuery({
@@ -94,13 +104,34 @@ export function ConsoleCatalogPage() {
         </TabsList>
 
         <TabsContent value="locations" className="mt-4">
-          <CatalogLocationsPanel locations={locations} />
+          <CatalogLocationsPanel
+            tenantSlug={tenantSlug}
+            locations={locations}
+            resources={resources}
+            onLocationsChange={() =>
+              queryClient.invalidateQueries({ queryKey: ["staff-catalog-locations", tenantSlug] })
+            }
+          />
         </TabsContent>
         <TabsContent value="services" className="mt-4">
-          <CatalogServicesPanel services={services} />
+          <CatalogServicesPanel
+            tenantSlug={tenantSlug}
+            services={services}
+            resources={resources}
+            onServicesChange={() =>
+              queryClient.invalidateQueries({ queryKey: ["staff-catalog-services", tenantSlug] })
+            }
+          />
         </TabsContent>
         <TabsContent value="resources" className="mt-4">
-          <CatalogResourcesPanel resources={resources} locations={locations} />
+          <CatalogResourcesPanel
+            tenantSlug={tenantSlug}
+            resources={resources}
+            locations={locations}
+            onResourcesChange={() =>
+              queryClient.invalidateQueries({ queryKey: ["staff-catalog-resources", tenantSlug] })
+            }
+          />
         </TabsContent>
       </Tabs>
     </div>
@@ -114,11 +145,34 @@ function filterByActive<T extends { is_active: boolean }>(items: T[], filter: Ac
   return items.filter((item) => (filter === "active" ? item.is_active : !item.is_active));
 }
 
-function CatalogLocationsPanel({ locations }: { locations: CatalogLocation[] }) {
+function CatalogLocationsPanel({
+  tenantSlug,
+  locations,
+  resources,
+  onLocationsChange,
+}: {
+  tenantSlug: string;
+  locations: CatalogLocation[];
+  resources: CatalogResource[];
+  onLocationsChange: () => void;
+}) {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
   const [sortKey, setSortKey] = useState<"name" | "name-desc">("name");
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingLocation, setEditingLocation] = useState<CatalogLocation | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CatalogLocation | null>(null);
   const debouncedSearch = useDebouncedValue(search);
+
+  const openCreate = () => {
+    setEditingLocation(null);
+    setFormOpen(true);
+  };
+
+  const openEdit = (location: CatalogLocation) => {
+    setEditingLocation(location);
+    setFormOpen(true);
+  };
 
   const filtered = useMemo(() => {
     const scoped = filterByActive(locations, activeFilter).filter((location) =>
@@ -136,54 +190,110 @@ function CatalogLocationsPanel({ locations }: { locations: CatalogLocation[] }) 
   });
 
   return (
-    <CatalogListShell
-      search={search}
-      onSearchChange={setSearch}
-      searchPlaceholder="搜索地点名称或地址…"
-      activeFilter={activeFilter}
-      onActiveFilterChange={setActiveFilter}
-      sortKey={sortKey}
-      onSortKeyChange={(value) => setSortKey(value as "name" | "name-desc")}
-      totalCount={filtered.length}
-      resultLabel="个地点"
-      isEmptySource={locations.length === 0}
-      emptyTitle="暂无地点"
-      emptyDescription="在 Django Admin 或后续编辑功能中添加第一个服务地点。"
-      noMatchTitle="没有匹配的地点"
-    >
-      {pagination.items.map((location, index) => (
-        <div key={location.id}>
-          {index > 0 ? <Separator /> : null}
-          <div className="flex items-center gap-4 px-4 py-4">
-            <div className="min-w-0 flex-1">
-              <p className="font-medium">{location.name}</p>
-              <p className="text-sm text-muted-foreground">{location.address || "无地址"}</p>
-              <p className="font-mono text-xs tabular-nums text-muted-foreground">
-                资源 {location.resource_ids.length} 个
-              </p>
+    <>
+      <CatalogListShell
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="搜索地点名称或地址…"
+        activeFilter={activeFilter}
+        onActiveFilterChange={setActiveFilter}
+        sortKey={sortKey}
+        onSortKeyChange={(value) => setSortKey(value as "name" | "name-desc")}
+        totalCount={filtered.length}
+        resultLabel="个地点"
+        isEmptySource={locations.length === 0}
+        emptyTitle="暂无地点"
+        emptyDescription="添加第一个服务地点，客户才能在预约页选择门店。"
+        emptyActionLabel="添加第一个地点"
+        addButtonLabel="新增地点"
+        onAdd={openCreate}
+        noMatchTitle="没有匹配的地点"
+      >
+        {pagination.items.map((location, index) => (
+          <div key={location.id}>
+            {index > 0 ? <Separator /> : null}
+            <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">{location.name}</p>
+                <p className="text-sm text-muted-foreground">{location.address || "无地址"}</p>
+                <p className="font-mono text-xs tabular-nums text-muted-foreground">
+                  资源 {location.resource_ids.length} 个
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <Badge variant={location.is_active ? "default" : "secondary"}>
+                  {location.is_active ? "启用" : "停用"}
+                </Badge>
+                <Button size="sm" variant="outline" onClick={() => openEdit(location)}>
+                  编辑
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setDeleteTarget(location)}>
+                  删除
+                </Button>
+              </div>
             </div>
-            <Badge variant={location.is_active ? "default" : "secondary"}>
-              {location.is_active ? "启用" : "停用"}
-            </Badge>
           </div>
-        </div>
-      ))}
-      <ListPagination
-        page={pagination.page}
-        totalPages={pagination.totalPages}
-        totalItems={pagination.totalItems}
-        pageSize={pagination.pageSize}
-        onPageChange={pagination.setPage}
+        ))}
+        <ListPagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.totalItems}
+          pageSize={pagination.pageSize}
+          onPageChange={pagination.setPage}
+        />
+      </CatalogListShell>
+
+      <CatalogLocationFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        tenantSlug={tenantSlug}
+        location={editingLocation}
+        resources={resources}
+        onSuccess={onLocationsChange}
       />
-    </CatalogListShell>
+      <CatalogLocationDeleteDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+          }
+        }}
+        tenantSlug={tenantSlug}
+        location={deleteTarget}
+        onSuccess={onLocationsChange}
+      />
+    </>
   );
 }
 
-function CatalogServicesPanel({ services }: { services: CatalogService[] }) {
+function CatalogServicesPanel({
+  tenantSlug,
+  services,
+  resources,
+  onServicesChange,
+}: {
+  tenantSlug: string;
+  services: CatalogService[];
+  resources: CatalogResource[];
+  onServicesChange: () => void;
+}) {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
   const [sortKey, setSortKey] = useState<"name" | "price-asc" | "price-desc">("name");
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingService, setEditingService] = useState<CatalogService | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CatalogService | null>(null);
   const debouncedSearch = useDebouncedValue(search);
+
+  const openCreate = () => {
+    setEditingService(null);
+    setFormOpen(true);
+  };
+
+  const openEdit = (service: CatalogService) => {
+    setEditingService(service);
+    setFormOpen(true);
+  };
 
   const filtered = useMemo(() => {
     const scoped = filterByActive(services, activeFilter).filter((service) =>
@@ -198,74 +308,135 @@ function CatalogServicesPanel({ services }: { services: CatalogService[] }) {
   });
 
   return (
-    <CatalogListShell
-      search={search}
-      onSearchChange={setSearch}
-      searchPlaceholder="搜索服务名称或说明…"
-      activeFilter={activeFilter}
-      onActiveFilterChange={setActiveFilter}
-      sortKey={sortKey}
-      onSortKeyChange={(value) => setSortKey(value as "name" | "price-asc" | "price-desc")}
-      sortOptions={[
-        { value: "name", label: "按名称" },
-        { value: "price-asc", label: "价格从低到高" },
-        { value: "price-desc", label: "价格从高到低" },
-      ]}
-      totalCount={filtered.length}
-      resultLabel="项服务"
-      isEmptySource={services.length === 0}
-      emptyTitle="暂无服务"
-      emptyDescription="添加服务项目后，客户才能在预约页选择并下单。"
-      noMatchTitle="没有匹配的服务"
-    >
-      {pagination.items.map((service, index) => (
-        <div key={service.id}>
-          {index > 0 ? <Separator /> : null}
-          <div className="flex items-center gap-4 px-4 py-4">
-            <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
-              {service.duration_minutes}′
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="font-medium">{service.name}</p>
-              {service.description ? (
-                <p className="text-sm text-muted-foreground">{service.description}</p>
-              ) : null}
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <span className="font-mono text-sm tabular-nums text-muted-foreground">
-                {formatPrice(service.price_cents, service.currency)}
-              </span>
-              <Badge variant={service.is_active ? "default" : "secondary"}>
-                {service.is_active ? "启用" : "停用"}
-              </Badge>
+    <>
+      <CatalogListShell
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="搜索服务名称或说明…"
+        activeFilter={activeFilter}
+        onActiveFilterChange={setActiveFilter}
+        sortKey={sortKey}
+        onSortKeyChange={(value) => setSortKey(value as "name" | "price-asc" | "price-desc")}
+        sortOptions={[
+          { value: "name", label: "按名称" },
+          { value: "price-asc", label: "价格从低到高" },
+          { value: "price-desc", label: "价格从高到低" },
+        ]}
+        totalCount={filtered.length}
+        resultLabel="项服务"
+        isEmptySource={services.length === 0}
+        emptyTitle="暂无服务"
+        emptyDescription="添加服务项目后，客户才能在预约页选择并下单。"
+        emptyActionLabel="添加第一个服务"
+        addButtonLabel="新增服务"
+        onAdd={openCreate}
+        noMatchTitle="没有匹配的服务"
+      >
+        {pagination.items.map((service, index) => (
+          <div key={service.id}>
+            {index > 0 ? <Separator /> : null}
+            <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 flex-1 items-start gap-4">
+                <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+                  {service.duration_minutes}′
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">{service.name}</p>
+                  {service.description ? (
+                    <p className="text-sm text-muted-foreground">{service.description}</p>
+                  ) : null}
+                  <p className="font-mono text-xs tabular-nums text-muted-foreground">
+                    资源 {service.resource_ids.length} 个
+                  </p>
+                </div>
+              </div>
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <span className="font-mono text-sm tabular-nums text-muted-foreground">
+                  {formatPrice(service.price_cents, service.currency)}
+                </span>
+                <Badge variant={service.is_active ? "default" : "secondary"}>
+                  {service.is_active ? "启用" : "停用"}
+                </Badge>
+                <Button size="sm" variant="outline" onClick={() => openEdit(service)}>
+                  编辑
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setDeleteTarget(service)}>
+                  删除
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      ))}
-      <ListPagination
-        page={pagination.page}
-        totalPages={pagination.totalPages}
-        totalItems={pagination.totalItems}
-        pageSize={pagination.pageSize}
-        onPageChange={pagination.setPage}
+        ))}
+        <ListPagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.totalItems}
+          pageSize={pagination.pageSize}
+          onPageChange={pagination.setPage}
+        />
+      </CatalogListShell>
+
+      <CatalogServiceFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        tenantSlug={tenantSlug}
+        service={editingService}
+        resources={resources}
+        onSuccess={onServicesChange}
       />
-    </CatalogListShell>
+      <CatalogServiceDeleteDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+          }
+        }}
+        tenantSlug={tenantSlug}
+        service={deleteTarget}
+        onSuccess={onServicesChange}
+      />
+    </>
   );
 }
 
+const RESOURCE_TYPE_LABELS: Record<string, string> = {
+  staff: "工作人员",
+  room: "房间",
+  venue: "场地",
+  equipment: "设备",
+};
+
 function CatalogResourcesPanel({
+  tenantSlug,
   resources,
   locations,
+  onResourcesChange,
 }: {
+  tenantSlug: string;
   resources: CatalogResource[];
   locations: CatalogLocation[];
+  onResourcesChange: () => void;
 }) {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
   const [sortKey, setSortKey] = useState<"name" | "name-desc">("name");
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingResource, setEditingResource] = useState<CatalogResource | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CatalogResource | null>(null);
   const debouncedSearch = useDebouncedValue(search);
 
+  const openCreate = () => {
+    setEditingResource(null);
+    setFormOpen(true);
+  };
+
+  const openEdit = (resource: CatalogResource) => {
+    setEditingResource(resource);
+    setFormOpen(true);
+  };
+
   const locationName = (id: number) => locations.find((l) => l.id === id)?.name ?? String(id);
+  const resourceTypeLabel = (type: string) => RESOURCE_TYPE_LABELS[type] ?? type;
 
   const filtered = useMemo(() => {
     const scoped = filterByActive(resources, activeFilter).filter((resource) =>
@@ -287,46 +458,79 @@ function CatalogResourcesPanel({
   });
 
   return (
-    <CatalogListShell
-      search={search}
-      onSearchChange={setSearch}
-      searchPlaceholder="搜索资源名称或类型…"
-      activeFilter={activeFilter}
-      onActiveFilterChange={setActiveFilter}
-      sortKey={sortKey}
-      onSortKeyChange={(value) => setSortKey(value as "name" | "name-desc")}
-      totalCount={filtered.length}
-      resultLabel="个资源"
-      isEmptySource={resources.length === 0}
-      emptyTitle="暂无资源"
-      emptyDescription="资源（员工、房间、设备等）决定排班与可预约容量。"
-      noMatchTitle="没有匹配的资源"
-    >
-      {pagination.items.map((resource, index) => (
-        <div key={resource.id}>
-          {index > 0 ? <Separator /> : null}
-          <div className="flex items-center gap-4 px-4 py-4">
-            <div className="min-w-0 flex-1">
-              <p className="font-medium">{resource.name}</p>
-              <p className="text-sm text-muted-foreground">
-                类型 {resource.resource_type} · 地点{" "}
-                {resource.location_ids.map(locationName).join("、") || "—"}
-              </p>
+    <>
+      <CatalogListShell
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="搜索资源名称或类型…"
+        activeFilter={activeFilter}
+        onActiveFilterChange={setActiveFilter}
+        sortKey={sortKey}
+        onSortKeyChange={(value) => setSortKey(value as "name" | "name-desc")}
+        totalCount={filtered.length}
+        resultLabel="个资源"
+        isEmptySource={resources.length === 0}
+        emptyTitle="暂无资源"
+        emptyDescription="添加可预约资源（工作人员、房间、场地或设备），用于排班与容量管理。"
+        emptyActionLabel="添加第一个资源"
+        addButtonLabel="新增资源"
+        onAdd={openCreate}
+        noMatchTitle="没有匹配的资源"
+      >
+        {pagination.items.map((resource, index) => (
+          <div key={resource.id}>
+            {index > 0 ? <Separator /> : null}
+            <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">{resource.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  类型 {resourceTypeLabel(resource.resource_type)} · 地点{" "}
+                  {resource.location_ids.map(locationName).join("、") || "—"}
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <Badge variant={resource.is_active ? "default" : "secondary"}>
+                  {resource.is_active ? "启用" : "停用"}
+                </Badge>
+                <Button size="sm" variant="outline" onClick={() => openEdit(resource)}>
+                  编辑
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setDeleteTarget(resource)}>
+                  删除
+                </Button>
+              </div>
             </div>
-            <Badge variant={resource.is_active ? "default" : "secondary"}>
-              {resource.is_active ? "启用" : "停用"}
-            </Badge>
           </div>
-        </div>
-      ))}
-      <ListPagination
-        page={pagination.page}
-        totalPages={pagination.totalPages}
-        totalItems={pagination.totalItems}
-        pageSize={pagination.pageSize}
-        onPageChange={pagination.setPage}
+        ))}
+        <ListPagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.totalItems}
+          pageSize={pagination.pageSize}
+          onPageChange={pagination.setPage}
+        />
+      </CatalogListShell>
+
+      <CatalogResourceFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        tenantSlug={tenantSlug}
+        resource={editingResource}
+        locations={locations}
+        onSuccess={onResourcesChange}
       />
-    </CatalogListShell>
+      <CatalogResourceDeleteDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+          }
+        }}
+        tenantSlug={tenantSlug}
+        resource={deleteTarget}
+        onSuccess={onResourcesChange}
+      />
+    </>
   );
 }
 
@@ -347,6 +551,9 @@ function CatalogListShell({
   isEmptySource,
   emptyTitle,
   emptyDescription,
+  emptyActionLabel,
+  addButtonLabel,
+  onAdd,
   noMatchTitle,
   children,
 }: {
@@ -363,17 +570,41 @@ function CatalogListShell({
   isEmptySource: boolean;
   emptyTitle: string;
   emptyDescription: string;
+  emptyActionLabel?: string;
+  addButtonLabel?: string;
+  onAdd?: () => void;
   noMatchTitle: string;
   children: React.ReactNode;
 }) {
   if (isEmptySource) {
     return (
-      <EmptyState icon={Package} title={emptyTitle} description={emptyDescription} />
+      <div className="space-y-4">
+        {onAdd && addButtonLabel ? (
+          <div className="flex justify-end">
+            <Button onClick={onAdd}>{addButtonLabel}</Button>
+          </div>
+        ) : null}
+        <EmptyState
+          icon={Package}
+          title={emptyTitle}
+          description={emptyDescription}
+          action={
+            onAdd && emptyActionLabel ? (
+              <Button onClick={onAdd}>{emptyActionLabel}</Button>
+            ) : undefined
+          }
+        />
+      </div>
     );
   }
 
   return (
     <div className="space-y-4">
+      {onAdd && addButtonLabel ? (
+        <div className="flex justify-end">
+          <Button onClick={onAdd}>{addButtonLabel}</Button>
+        </div>
+      ) : null}
       <ListToolbar
         search={search}
         onSearchChange={onSearchChange}
