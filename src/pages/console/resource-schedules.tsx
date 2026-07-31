@@ -4,7 +4,7 @@ import { ArrowLeft, CalendarClock, SearchX } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import { staffCatalogLocationResourceList, staffCatalogLocationRetrieve } from "@/api/staff-catalog";
-import { staffScheduleRuleCreate, staffScheduleRuleList } from "@/api/staff-scheduling";
+import { staffScheduleRuleCreate, staffScheduleRuleDelete, staffScheduleRuleList } from "@/api/staff-scheduling";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,7 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { usePaginatedList } from "@/hooks/use-paginated-list";
 import { useConsoleSession } from "@/lib/console-session";
 import { matchesFields } from "@/lib/list-filters";
+import { CatalogDeleteConfirmDialog } from "@/pages/console/catalog-forms";
 import type { ApiError } from "@/types/api";
 import type { ScheduleRule, ScheduleRuleCreatePayload } from "@/types/staff-api";
 
@@ -326,6 +327,66 @@ function ScheduleRuleCreateDialog({
   );
 }
 
+interface ScheduleRuleDeleteDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  tenantSlug: string;
+  rule: ScheduleRule | null;
+  onSuccess: () => void;
+}
+
+/** 删除排班规则确认 Dialog。 */
+function ScheduleRuleDeleteDialog({
+  open,
+  onOpenChange,
+  tenantSlug,
+  rule,
+  onSuccess,
+}: ScheduleRuleDeleteDialogProps) {
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setError(null);
+    }
+  }, [open, rule]);
+
+  const deleteMutation = useMutation({
+    mutationFn: () => {
+      if (!rule) {
+        throw new Error("无规则数据");
+      }
+      return staffScheduleRuleDelete(tenantSlug, rule.id);
+    },
+    onSuccess: () => {
+      onSuccess();
+      onOpenChange(false);
+    },
+    onError: (err: ApiError) => {
+      setError(err.message);
+    },
+  });
+
+  if (!rule) {
+    return null;
+  }
+
+  const ruleLabel = `${formatDaysOfWeek(rule.days_of_week)} ${formatTimeLabel(rule.start_time)}–${formatTimeLabel(rule.end_time)}`;
+
+  return (
+    <CatalogDeleteConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="删除排班规则"
+      description="删除后今日及之后的空闲时段将被关闭；若存在有效预约则无法删除。"
+      itemName={ruleLabel}
+      isPending={deleteMutation.isPending}
+      error={error}
+      onConfirm={() => deleteMutation.mutate()}
+    />
+  );
+}
+
 /** 资源排班规则列表页。 */
 export function ConsoleResourceSchedulesPage() {
   const { tenantSlug } = useConsoleSession();
@@ -336,6 +397,7 @@ export function ConsoleResourceSchedulesPage() {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
   const [createOpen, setCreateOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ScheduleRule | null>(null);
   const debouncedSearch = useDebouncedValue(search);
 
   const locationQuery = useQuery({
@@ -532,9 +594,18 @@ export function ConsoleResourceSchedulesPage() {
                             容量 {rule.capacity}
                           </p>
                         </div>
-                        <Badge variant={rule.is_active ? "default" : "secondary"}>
-                          {rule.is_active ? "启用" : "停用"}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={rule.is_active ? "default" : "secondary"}>
+                            {rule.is_active ? "启用" : "停用"}
+                          </Badge>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setDeleteTarget(rule)}
+                          >
+                            删除
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -556,6 +627,17 @@ export function ConsoleResourceSchedulesPage() {
             tenantSlug={tenantSlug}
             locationId={parsedLocationId}
             resourceId={parsedResourceId}
+            onSuccess={invalidateRules}
+          />
+          <ScheduleRuleDeleteDialog
+            open={deleteTarget !== null}
+            onOpenChange={(open) => {
+              if (!open) {
+                setDeleteTarget(null);
+              }
+            }}
+            tenantSlug={tenantSlug}
+            rule={deleteTarget}
             onSuccess={invalidateRules}
           />
         </>

@@ -11,3 +11,8 @@ export function staffScheduleRuleList(tenantSlug: string, resourceId?: number) {
 export function staffScheduleRuleCreate(tenantSlug: string, payload: ScheduleRuleCreatePayload) {
   return staffApiClient.post<ScheduleRule>(`/api/v1/${tenantSlug}/scheduling/rules/`, payload);
 }
+
+/** 删除排班规则（Admin）。 */
+export function staffScheduleRuleDelete(tenantSlug: string, ruleId: number) {
+  return staffApiClient.delete(`/api/v1/${tenantSlug}/scheduling/rules/${ruleId}/`);
+}
