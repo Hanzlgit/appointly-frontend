@@ -733,16 +733,29 @@ export function ConsoleResourceSchedulesPage() {
     );
   }
 
-  if (
-    locationQuery.isError ||
-    resourcesQuery.isError ||
-    rulesQuery.isError ||
-    !locationQuery.data ||
-    !resource
-  ) {
+  if (locationQuery.isError || resourcesQuery.isError) {
     return (
       <Alert variant="destructive">
-        <AlertDescription>无法加载排班页面。</AlertDescription>
+        <AlertDescription>无法加载地点或资源信息。</AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (rulesQuery.isError) {
+    const message = (rulesQuery.error as ApiError | null)?.message ?? "未知错误";
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>无法加载排班规则：{message}</AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (!locationQuery.data || !resource) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>
+          {!resource ? "该地点下找不到此资源。" : "无法加载排班页面。"}
+        </AlertDescription>
       </Alert>
     );
   }
