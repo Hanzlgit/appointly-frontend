@@ -7,6 +7,7 @@ import { Link, useParams } from "react-router-dom";
 import { staffCatalogLocationResourceList, staffCatalogLocationRetrieve } from "@/api/staff-catalog";
 import {
   staffScheduleRuleCreate,
+  staffScheduleRuleDelete,
   staffScheduleRuleList,
   staffScheduleRuleUpdate,
 } from "@/api/staff-scheduling";
@@ -41,6 +42,7 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { usePaginatedList } from "@/hooks/use-paginated-list";
 import { useConsoleSession } from "@/lib/console-session";
 import { matchesFields } from "@/lib/list-filters";
+import { CatalogDeleteConfirmDialog } from "@/pages/console/catalog-forms";
 import type { ApiError } from "@/types/api";
 import type { ScheduleRule, ScheduleRuleCreatePayload, ScheduleRuleUpdatePayload } from "@/types/staff-api";
 
@@ -570,6 +572,66 @@ function ScheduleRuleEditDialog({
   );
 }
 
+interface ScheduleRuleDeleteDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  tenantSlug: string;
+  rule: ScheduleRule | null;
+  onSuccess: () => void;
+}
+
+/** 删除排班规则确认 Dialog。 */
+function ScheduleRuleDeleteDialog({
+  open,
+  onOpenChange,
+  tenantSlug,
+  rule,
+  onSuccess,
+}: ScheduleRuleDeleteDialogProps) {
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setError(null);
+    }
+  }, [open, rule]);
+
+  const deleteMutation = useMutation({
+    mutationFn: () => {
+      if (!rule) {
+        throw new Error("无规则数据");
+      }
+      return staffScheduleRuleDelete(tenantSlug, rule.id);
+    },
+    onSuccess: () => {
+      onSuccess();
+      onOpenChange(false);
+    },
+    onError: (err: ApiError) => {
+      setError(err.message);
+    },
+  });
+
+  if (!rule) {
+    return null;
+  }
+
+  const ruleLabel = `${formatDaysOfWeek(rule.days_of_week)} ${formatTimeLabel(rule.start_time)}–${formatTimeLabel(rule.end_time)}`;
+
+  return (
+    <CatalogDeleteConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="删除排班规则"
+      description="删除后今日及之后的空闲时段将被关闭；若存在有效预约则无法删除。"
+      itemName={ruleLabel}
+      isPending={deleteMutation.isPending}
+      error={error}
+      onConfirm={() => deleteMutation.mutate()}
+    />
+  );
+}
+
 /** 资源排班规则列表页。 */
 export function ConsoleResourceSchedulesPage() {
   const { tenantSlug } = useConsoleSession();
@@ -581,6 +643,7 @@ export function ConsoleResourceSchedulesPage() {
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
   const [createOpen, setCreateOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<ScheduleRule | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ScheduleRule | null>(null);
   const [togglingRuleId, setTogglingRuleId] = useState<number | null>(null);
   const [toggleError, setToggleError] = useState<string | null>(null);
   const debouncedSearch = useDebouncedValue(search);
@@ -827,6 +890,9 @@ export function ConsoleResourceSchedulesPage() {
                                 ? "停用"
                                 : "启用"}
                           </Button>
+                          <Button size="sm" variant="outline" onClick={() => setDeleteTarget(rule)}>
+                            删除
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -860,6 +926,17 @@ export function ConsoleResourceSchedulesPage() {
             }}
             tenantSlug={tenantSlug}
             rule={editingRule}
+            onSuccess={invalidateRules}
+          />
+          <ScheduleRuleDeleteDialog
+            open={deleteTarget !== null}
+            onOpenChange={(open) => {
+              if (!open) {
+                setDeleteTarget(null);
+              }
+            }}
+            tenantSlug={tenantSlug}
+            rule={deleteTarget}
             onSuccess={invalidateRules}
           />
         </>

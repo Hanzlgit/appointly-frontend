@@ -28,3 +28,8 @@ export function staffScheduleRuleUpdate(
     payload,
   );
 }
+
+/** 删除排班规则（Admin）。 */
+export function staffScheduleRuleDelete(tenantSlug: string, ruleId: number) {
+  return staffApiClient.delete(`/api/v1/${tenantSlug}/scheduling/rules/${ruleId}/`);
+}
