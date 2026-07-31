@@ -53,7 +53,7 @@ export function MyBookingsPage() {
   const justBooked = searchParams.get("success") === "1";
 
   const [search, setSearch] = useState("");
-  const [timeFilter, setTimeFilter] = useState<BookingTimeFilter>("upcoming");
+  const [timeFilter, setTimeFilter] = useState<BookingTimeFilter>("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortKey, setSortKey] = useState<"start-asc" | "start-desc">("start-asc");
   const debouncedSearch = useDebouncedValue(search);
