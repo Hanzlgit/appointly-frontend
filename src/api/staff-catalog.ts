@@ -82,32 +82,30 @@ export function staffCatalogLocationResourceDelete(
   );
 }
 
-/** 聚合所有地点下的资源，供全局服务表单选用。 */
-export async function staffCatalogResourceListAll(tenantSlug: string) {
-  const { locations } = await staffCatalogLocationList(tenantSlug);
-  const lists = await Promise.all(
-    locations.map((location) => staffCatalogLocationResourceList(tenantSlug, location.id)),
+/** 列出指定地点下的服务（Admin）。 */
+export function staffCatalogLocationServiceList(tenantSlug: string, locationId: number) {
+  return staffApiClient.get<CatalogServiceList>(
+    `/api/v1/${tenantSlug}/catalog/locations/${locationId}/services/`,
   );
-  return { resources: lists.flatMap((list) => list.resources) };
 }
 
-/** 列出服务（Admin）。 */
-export function staffCatalogServiceList(tenantSlug: string) {
-  return staffApiClient.get<CatalogServiceList>(`/api/v1/${tenantSlug}/catalog/services/`);
-}
-
-export function staffCatalogServiceCreate(
+export function staffCatalogLocationServiceCreate(
   tenantSlug: string,
+  locationId: number,
   payload: Pick<
     CatalogService,
     "name" | "description" | "duration_minutes" | "price_cents" | "currency"
   > & { resource_ids?: number[] },
 ) {
-  return staffApiClient.post<CatalogService>(`/api/v1/${tenantSlug}/catalog/services/`, payload);
+  return staffApiClient.post<CatalogService>(
+    `/api/v1/${tenantSlug}/catalog/locations/${locationId}/services/`,
+    payload,
+  );
 }
 
-export function staffCatalogServiceUpdate(
+export function staffCatalogLocationServiceUpdate(
   tenantSlug: string,
+  locationId: number,
   serviceId: number,
   payload: Partial<
     Pick<
@@ -123,13 +121,19 @@ export function staffCatalogServiceUpdate(
   >,
 ) {
   return staffApiClient.patch<CatalogService>(
-    `/api/v1/${tenantSlug}/catalog/services/${serviceId}/`,
+    `/api/v1/${tenantSlug}/catalog/locations/${locationId}/services/${serviceId}/`,
     payload,
   );
 }
 
-export function staffCatalogServiceDelete(tenantSlug: string, serviceId: number) {
-  return staffApiClient.delete(`/api/v1/${tenantSlug}/catalog/services/${serviceId}/`);
+export function staffCatalogLocationServiceDelete(
+  tenantSlug: string,
+  locationId: number,
+  serviceId: number,
+) {
+  return staffApiClient.delete(
+    `/api/v1/${tenantSlug}/catalog/locations/${locationId}/services/${serviceId}/`,
+  );
 }
 
 /** 获取预约规则（Admin）。 */

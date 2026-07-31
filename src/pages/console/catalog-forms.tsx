@@ -8,9 +8,9 @@ import {
   staffCatalogLocationResourceCreate,
   staffCatalogLocationResourceDelete,
   staffCatalogLocationResourceUpdate,
-  staffCatalogServiceCreate,
-  staffCatalogServiceDelete,
-  staffCatalogServiceUpdate,
+  staffCatalogLocationServiceCreate,
+  staffCatalogLocationServiceDelete,
+  staffCatalogLocationServiceUpdate,
 } from "@/api/staff-catalog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -274,6 +274,7 @@ interface CatalogServiceFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   tenantSlug: string;
+  locationId: number;
   service: CatalogService | null;
   resources: CatalogResource[];
   onSuccess: () => void;
@@ -284,6 +285,7 @@ export function CatalogServiceFormDialog({
   open,
   onOpenChange,
   tenantSlug,
+  locationId,
   service,
   resources,
   onSuccess,
@@ -335,12 +337,12 @@ export function CatalogServiceFormDialog({
         resource_ids: resourceIds,
       };
       if (isEdit) {
-        return staffCatalogServiceUpdate(tenantSlug, service.id, {
+        return staffCatalogLocationServiceUpdate(tenantSlug, locationId, service.id, {
           ...payload,
           is_active: isActive,
         });
       }
-      return staffCatalogServiceCreate(tenantSlug, {
+      return staffCatalogLocationServiceCreate(tenantSlug, locationId, {
         ...payload,
         currency: "CNY",
       });
@@ -486,6 +488,7 @@ interface CatalogServiceDeleteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   tenantSlug: string;
+  locationId: number;
   service: CatalogService | null;
   onSuccess: () => void;
 }
@@ -495,6 +498,7 @@ export function CatalogServiceDeleteDialog({
   open,
   onOpenChange,
   tenantSlug,
+  locationId,
   service,
   onSuccess,
 }: CatalogServiceDeleteDialogProps) {
@@ -511,7 +515,7 @@ export function CatalogServiceDeleteDialog({
       if (!service) {
         throw new Error("无服务数据");
       }
-      return staffCatalogServiceDelete(tenantSlug, service.id);
+      return staffCatalogLocationServiceDelete(tenantSlug, locationId, service.id);
     },
     onSuccess: () => {
       onSuccess();

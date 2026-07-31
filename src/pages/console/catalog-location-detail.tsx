@@ -7,9 +7,15 @@ import {
   CatalogLocationFormDialog,
   CatalogResourceDeleteDialog,
   CatalogResourceFormDialog,
+  CatalogServiceDeleteDialog,
+  CatalogServiceFormDialog,
 } from "@/pages/console/catalog-forms";
 
-import { staffCatalogLocationResourceList, staffCatalogLocationRetrieve } from "@/api/staff-catalog";
+import {
+  staffCatalogLocationResourceList,
+  staffCatalogLocationRetrieve,
+  staffCatalogLocationServiceList,
+} from "@/api/staff-catalog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,13 +25,16 @@ import { ListPagination } from "@/components/ui/list-pagination";
 import { ListToolbar } from "@/components/ui/list-toolbar";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { usePaginatedList } from "@/hooks/use-paginated-list";
 import { useConsoleSession } from "@/lib/console-session";
-import { matchesFields } from "@/lib/list-filters";
-import type { CatalogResource } from "@/types/staff-api";
+import { matchesFields, sortServices } from "@/lib/list-filters";
+import { formatPrice } from "@/lib/utils";
+import type { CatalogResource, CatalogService } from "@/types/staff-api";
 
 type ActiveFilter = "all" | "active" | "inactive";
+type LocationDetailTab = "services" | "resources";
 
 const ACTIVE_FILTER_OPTIONS = [
   { value: "all", label: "全部状态" },
@@ -40,13 +49,14 @@ function filterByActive<T extends { is_active: boolean }>(items: T[], filter: Ac
   return items.filter((item) => (filter === "active" ? item.is_active : !item.is_active));
 }
 
-/** 地点详情页：编辑地点信息并管理该地点下的资源。 */
+/** 地点详情页：编辑地点信息并管理该地点下的服务与资源。 */
 export function ConsoleCatalogLocationDetailPage() {
   const { tenantSlug } = useConsoleSession();
   const { locationId } = useParams<{ locationId: string }>();
   const parsedLocationId = Number(locationId);
   const queryClient = useQueryClient();
   const [locationFormOpen, setLocationFormOpen] = useState(false);
+  const [tab, setTab] = useState<LocationDetailTab>("services");
 
   const locationQuery = useQuery({
     queryKey: ["staff-catalog-location", tenantSlug, parsedLocationId],
@@ -60,10 +70,19 @@ export function ConsoleCatalogLocationDetailPage() {
     enabled: Number.isFinite(parsedLocationId),
   });
 
+  const servicesQuery = useQuery({
+    queryKey: ["staff-catalog-location-services", tenantSlug, parsedLocationId],
+    queryFn: () => staffCatalogLocationServiceList(tenantSlug, parsedLocationId),
+    enabled: Number.isFinite(parsedLocationId),
+  });
+
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ["staff-catalog-location", tenantSlug, parsedLocationId] });
     queryClient.invalidateQueries({
       queryKey: ["staff-catalog-location-resources", tenantSlug, parsedLocationId],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["staff-catalog-location-services", tenantSlug, parsedLocationId],
     });
     queryClient.invalidateQueries({ queryKey: ["staff-catalog-locations", tenantSlug] });
   };
@@ -76,7 +95,7 @@ export function ConsoleCatalogLocationDetailPage() {
     );
   }
 
-  if (locationQuery.isLoading || resourcesQuery.isLoading) {
+  if (locationQuery.isLoading || resourcesQuery.isLoading || servicesQuery.isLoading) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-48" />
@@ -86,7 +105,12 @@ export function ConsoleCatalogLocationDetailPage() {
     );
   }
 
-  if (locationQuery.isError || resourcesQuery.isError || !locationQuery.data) {
+  if (
+    locationQuery.isError ||
+    resourcesQuery.isError ||
+    servicesQuery.isError ||
+    !locationQuery.data
+  ) {
     return (
       <Alert variant="destructive">
         <AlertDescription>无法加载地点详情。</AlertDescription>
@@ -96,6 +120,7 @@ export function ConsoleCatalogLocationDetailPage() {
 
   const location = locationQuery.data;
   const resources = resourcesQuery.data!.resources;
+  const services = servicesQuery.data!.services;
 
   return (
     <div className="space-y-6">
@@ -123,12 +148,31 @@ export function ConsoleCatalogLocationDetailPage() {
         </Button>
       </div>
 
-      <LocationResourcesPanel
-        tenantSlug={tenantSlug}
-        locationId={parsedLocationId}
-        resources={resources}
-        onResourcesChange={invalidateAll}
-      />
+      <Tabs value={tab} onValueChange={(value) => setTab(value as LocationDetailTab)}>
+        <TabsList>
+          <TabsTrigger value="services">服务 ({services.length})</TabsTrigger>
+          <TabsTrigger value="resources">资源 ({resources.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="services" className="mt-4">
+          <LocationServicesPanel
+            tenantSlug={tenantSlug}
+            locationId={parsedLocationId}
+            services={services}
+            resources={resources}
+            onServicesChange={invalidateAll}
+          />
+        </TabsContent>
+
+        <TabsContent value="resources" className="mt-4">
+          <LocationResourcesPanel
+            tenantSlug={tenantSlug}
+            locationId={parsedLocationId}
+            resources={resources}
+            onResourcesChange={invalidateAll}
+          />
+        </TabsContent>
+      </Tabs>
 
       <CatalogLocationFormDialog
         open={locationFormOpen}
@@ -138,6 +182,203 @@ export function ConsoleCatalogLocationDetailPage() {
         onSuccess={invalidateAll}
       />
     </div>
+  );
+}
+
+function LocationServicesPanel({
+  tenantSlug,
+  locationId,
+  services,
+  resources,
+  onServicesChange,
+}: {
+  tenantSlug: string;
+  locationId: number;
+  services: CatalogService[];
+  resources: CatalogResource[];
+  onServicesChange: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
+  const [sortKey, setSortKey] = useState<"name" | "price-asc" | "price-desc">("name");
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingService, setEditingService] = useState<CatalogService | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CatalogService | null>(null);
+  const debouncedSearch = useDebouncedValue(search);
+
+  const openCreate = () => {
+    setEditingService(null);
+    setFormOpen(true);
+  };
+
+  const openEdit = (service: CatalogService) => {
+    setEditingService(service);
+    setFormOpen(true);
+  };
+
+  const filtered = useMemo(() => {
+    const scoped = filterByActive(services, activeFilter).filter((service) =>
+      matchesFields(debouncedSearch, [service.name, service.description]),
+    );
+    return sortServices(scoped, sortKey);
+  }, [services, activeFilter, debouncedSearch, sortKey]);
+
+  const pagination = usePaginatedList(filtered, {
+    pageSize: 10,
+    resetKeys: [debouncedSearch, activeFilter, sortKey],
+  });
+
+  if (services.length === 0) {
+    return (
+      <>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-medium">服务</h2>
+            <Button onClick={openCreate}>新增服务</Button>
+          </div>
+          <EmptyState
+            icon={Package}
+            title="暂无服务"
+            description="添加服务项目后，客户才能在预约页选择并下单。"
+            action={<Button onClick={openCreate}>添加第一个服务</Button>}
+          />
+        </div>
+        <CatalogServiceFormDialog
+          open={formOpen}
+          onOpenChange={setFormOpen}
+          tenantSlug={tenantSlug}
+          locationId={locationId}
+          service={editingService}
+          resources={resources}
+          onSuccess={onServicesChange}
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-medium">服务</h2>
+          <Button onClick={openCreate}>新增服务</Button>
+        </div>
+
+        <ListToolbar
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="搜索服务名称或说明…"
+          resultCount={filtered.length}
+          resultLabel="项服务"
+          filters={[
+            {
+              value: activeFilter,
+              onValueChange: (value) => setActiveFilter(value as ActiveFilter),
+              placeholder: "状态",
+              options: ACTIVE_FILTER_OPTIONS,
+            },
+          ]}
+          sort={{
+            value: sortKey,
+            onValueChange: (value) => setSortKey(value as "name" | "price-asc" | "price-desc"),
+            options: [
+              { value: "name", label: "按名称" },
+              { value: "price-asc", label: "价格从低到高" },
+              { value: "price-desc", label: "价格从高到低" },
+            ],
+          }}
+        />
+
+        {filtered.length === 0 ? (
+          <EmptyState
+            icon={SearchX}
+            title="没有匹配的服务"
+            description="试试调整筛选条件，或清除搜索。"
+            action={
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSearch("");
+                  setActiveFilter("all");
+                }}
+              >
+                重置筛选
+              </Button>
+            }
+          />
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              {pagination.items.map((service, index) => (
+                <div key={service.id}>
+                  {index > 0 ? <Separator /> : null}
+                  <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 flex-1 items-start gap-4">
+                      <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+                        {service.duration_minutes}′
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">{service.name}</p>
+                        {service.description ? (
+                          <p className="text-sm text-muted-foreground">{service.description}</p>
+                        ) : null}
+                        <p className="font-mono text-xs tabular-nums text-muted-foreground">
+                          资源 {service.resource_ids.length} 个
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      <span className="font-mono text-sm tabular-nums text-muted-foreground">
+                        {formatPrice(service.price_cents, service.currency)}
+                      </span>
+                      <Badge variant={service.is_active ? "default" : "secondary"}>
+                        {service.is_active ? "启用" : "停用"}
+                      </Badge>
+                      <Button size="sm" variant="outline" onClick={() => openEdit(service)}>
+                        编辑
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setDeleteTarget(service)}>
+                        删除
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <ListPagination
+                page={pagination.page}
+                totalPages={pagination.totalPages}
+                totalItems={pagination.totalItems}
+                pageSize={pagination.pageSize}
+                onPageChange={pagination.setPage}
+              />
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      <CatalogServiceFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        tenantSlug={tenantSlug}
+        locationId={locationId}
+        service={editingService}
+        resources={resources}
+        onSuccess={onServicesChange}
+      />
+      <CatalogServiceDeleteDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+          }
+        }}
+        tenantSlug={tenantSlug}
+        locationId={locationId}
+        service={deleteTarget}
+        onSuccess={onServicesChange}
+      />
+    </>
   );
 }
 

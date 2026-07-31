@@ -75,6 +75,7 @@ export interface CatalogLocation {
   address: string;
   is_active: boolean;
   resource_count: number;
+  service_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -87,6 +88,7 @@ export interface CatalogService {
   price_cents: number;
   currency: string;
   is_active: boolean;
+  location_id: number;
   resource_ids: number[];
   created_at: string;
   updated_at: string;

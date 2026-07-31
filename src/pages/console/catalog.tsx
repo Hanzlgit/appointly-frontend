@@ -6,15 +6,9 @@ import { Link } from "react-router-dom";
 import {
   CatalogLocationDeleteDialog,
   CatalogLocationFormDialog,
-  CatalogServiceDeleteDialog,
-  CatalogServiceFormDialog,
 } from "@/pages/console/catalog-forms";
 
-import {
-  staffCatalogLocationList,
-  staffCatalogResourceListAll,
-  staffCatalogServiceList,
-} from "@/api/staff-catalog";
+import { staffCatalogLocationList } from "@/api/staff-catalog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,16 +18,13 @@ import { ListPagination } from "@/components/ui/list-pagination";
 import { ListToolbar } from "@/components/ui/list-toolbar";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { usePaginatedList } from "@/hooks/use-paginated-list";
 import { useConsoleSession } from "@/lib/console-session";
-import { matchesFields, sortServices } from "@/lib/list-filters";
-import { formatPrice } from "@/lib/utils";
-import type { CatalogLocation, CatalogResource, CatalogService } from "@/types/staff-api";
+import { matchesFields } from "@/lib/list-filters";
+import type { CatalogLocation } from "@/types/staff-api";
 
 type ActiveFilter = "all" | "active" | "inactive";
-type CatalogTab = "locations" | "services";
 
 const ACTIVE_FILTER_OPTIONS = [
   { value: "all", label: "全部状态" },
@@ -45,28 +36,13 @@ const ACTIVE_FILTER_OPTIONS = [
 export function ConsoleCatalogPage() {
   const { tenantSlug } = useConsoleSession();
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<CatalogTab>("locations");
 
   const locationsQuery = useQuery({
     queryKey: ["staff-catalog-locations", tenantSlug],
     queryFn: () => staffCatalogLocationList(tenantSlug),
   });
 
-  const servicesQuery = useQuery({
-    queryKey: ["staff-catalog-services", tenantSlug],
-    queryFn: () => staffCatalogServiceList(tenantSlug),
-  });
-
-  const resourcesQuery = useQuery({
-    queryKey: ["staff-catalog-resources-all", tenantSlug],
-    queryFn: () => staffCatalogResourceListAll(tenantSlug),
-    enabled: tab === "services",
-  });
-
-  const isLoading = locationsQuery.isLoading || servicesQuery.isLoading;
-  const isError = locationsQuery.isError || servicesQuery.isError;
-
-  if (isLoading) {
+  if (locationsQuery.isLoading) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-32" />
@@ -76,7 +52,7 @@ export function ConsoleCatalogPage() {
     );
   }
 
-  if (isError) {
+  if (locationsQuery.isError) {
     return (
       <Alert variant="destructive">
         <AlertDescription>无法加载服务目录。</AlertDescription>
@@ -85,8 +61,6 @@ export function ConsoleCatalogPage() {
   }
 
   const locations = locationsQuery.data!.locations;
-  const services = servicesQuery.data!.services;
-  const resources = resourcesQuery.data?.resources ?? [];
 
   return (
     <div className="space-y-6">
@@ -95,33 +69,13 @@ export function ConsoleCatalogPage() {
         <p className="text-sm text-muted-foreground">从地点进入，管理各店下的服务与资源。</p>
       </div>
 
-      <Tabs value={tab} onValueChange={(value) => setTab(value as CatalogTab)}>
-        <TabsList>
-          <TabsTrigger value="locations">地点 ({locations.length})</TabsTrigger>
-          <TabsTrigger value="services">服务 ({services.length})</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="locations" className="mt-4">
-          <CatalogLocationsPanel
-            tenantSlug={tenantSlug}
-            locations={locations}
-            onLocationsChange={() =>
-              queryClient.invalidateQueries({ queryKey: ["staff-catalog-locations", tenantSlug] })
-            }
-          />
-        </TabsContent>
-        <TabsContent value="services" className="mt-4">
-          <CatalogServicesPanel
-            tenantSlug={tenantSlug}
-            services={services}
-            resources={resources}
-            resourcesLoading={resourcesQuery.isLoading}
-            onServicesChange={() =>
-              queryClient.invalidateQueries({ queryKey: ["staff-catalog-services", tenantSlug] })
-            }
-          />
-        </TabsContent>
-      </Tabs>
+      <CatalogLocationsPanel
+        tenantSlug={tenantSlug}
+        locations={locations}
+        onLocationsChange={() =>
+          queryClient.invalidateQueries({ queryKey: ["staff-catalog-locations", tenantSlug] })
+        }
+      />
     </div>
   );
 }
@@ -201,7 +155,7 @@ function CatalogLocationsPanel({
                 <p className="font-medium">{location.name}</p>
                 <p className="text-sm text-muted-foreground">{location.address || "无地址"}</p>
                 <p className="font-mono text-xs tabular-nums text-muted-foreground">
-                  资源 {location.resource_count} 个
+                  服务 {location.service_count} 项 · 资源 {location.resource_count} 个
                 </p>
               </Link>
               <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -248,141 +202,6 @@ function CatalogLocationsPanel({
         tenantSlug={tenantSlug}
         location={deleteTarget}
         onSuccess={onLocationsChange}
-      />
-    </>
-  );
-}
-
-function CatalogServicesPanel({
-  tenantSlug,
-  services,
-  resources,
-  resourcesLoading,
-  onServicesChange,
-}: {
-  tenantSlug: string;
-  services: CatalogService[];
-  resources: CatalogResource[];
-  resourcesLoading: boolean;
-  onServicesChange: () => void;
-}) {
-  const [search, setSearch] = useState("");
-  const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
-  const [sortKey, setSortKey] = useState<"name" | "price-asc" | "price-desc">("name");
-  const [formOpen, setFormOpen] = useState(false);
-  const [editingService, setEditingService] = useState<CatalogService | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<CatalogService | null>(null);
-  const debouncedSearch = useDebouncedValue(search);
-
-  const openCreate = () => {
-    setEditingService(null);
-    setFormOpen(true);
-  };
-
-  const openEdit = (service: CatalogService) => {
-    setEditingService(service);
-    setFormOpen(true);
-  };
-
-  const filtered = useMemo(() => {
-    const scoped = filterByActive(services, activeFilter).filter((service) =>
-      matchesFields(debouncedSearch, [service.name, service.description]),
-    );
-    return sortServices(scoped, sortKey);
-  }, [services, activeFilter, debouncedSearch, sortKey]);
-
-  const pagination = usePaginatedList(filtered, {
-    pageSize: 10,
-    resetKeys: [debouncedSearch, activeFilter, sortKey],
-  });
-
-  return (
-    <>
-      <CatalogListShell
-        search={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="搜索服务名称或说明…"
-        activeFilter={activeFilter}
-        onActiveFilterChange={setActiveFilter}
-        sortKey={sortKey}
-        onSortKeyChange={(value) => setSortKey(value as "name" | "price-asc" | "price-desc")}
-        sortOptions={[
-          { value: "name", label: "按名称" },
-          { value: "price-asc", label: "价格从低到高" },
-          { value: "price-desc", label: "价格从高到低" },
-        ]}
-        totalCount={filtered.length}
-        resultLabel="项服务"
-        isEmptySource={services.length === 0}
-        emptyTitle="暂无服务"
-        emptyDescription="添加服务项目后，客户才能在预约页选择并下单。"
-        emptyActionLabel="添加第一个服务"
-        addButtonLabel="新增服务"
-        onAdd={openCreate}
-        noMatchTitle="没有匹配的服务"
-      >
-        {pagination.items.map((service, index) => (
-          <div key={service.id}>
-            {index > 0 ? <Separator /> : null}
-            <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex min-w-0 flex-1 items-start gap-4">
-                <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
-                  {service.duration_minutes}′
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">{service.name}</p>
-                  {service.description ? (
-                    <p className="text-sm text-muted-foreground">{service.description}</p>
-                  ) : null}
-                  <p className="font-mono text-xs tabular-nums text-muted-foreground">
-                    资源 {service.resource_ids.length} 个
-                  </p>
-                </div>
-              </div>
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
-                <span className="font-mono text-sm tabular-nums text-muted-foreground">
-                  {formatPrice(service.price_cents, service.currency)}
-                </span>
-                <Badge variant={service.is_active ? "default" : "secondary"}>
-                  {service.is_active ? "启用" : "停用"}
-                </Badge>
-                <Button size="sm" variant="outline" onClick={() => openEdit(service)}>
-                  编辑
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setDeleteTarget(service)}>
-                  删除
-                </Button>
-              </div>
-            </div>
-          </div>
-        ))}
-        <ListPagination
-          page={pagination.page}
-          totalPages={pagination.totalPages}
-          totalItems={pagination.totalItems}
-          pageSize={pagination.pageSize}
-          onPageChange={pagination.setPage}
-        />
-      </CatalogListShell>
-
-      <CatalogServiceFormDialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        tenantSlug={tenantSlug}
-        service={editingService}
-        resources={resourcesLoading ? [] : resources}
-        onSuccess={onServicesChange}
-      />
-      <CatalogServiceDeleteDialog
-        open={deleteTarget !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleteTarget(null);
-          }
-        }}
-        tenantSlug={tenantSlug}
-        service={deleteTarget}
-        onSuccess={onServicesChange}
       />
     </>
   );
