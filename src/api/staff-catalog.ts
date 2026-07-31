@@ -14,9 +14,15 @@ export function staffCatalogLocationList(tenantSlug: string) {
   return staffApiClient.get<CatalogLocationList>(`/api/v1/${tenantSlug}/catalog/locations/`);
 }
 
+export function staffCatalogLocationRetrieve(tenantSlug: string, locationId: number) {
+  return staffApiClient.get<CatalogLocation>(
+    `/api/v1/${tenantSlug}/catalog/locations/${locationId}/`,
+  );
+}
+
 export function staffCatalogLocationCreate(
   tenantSlug: string,
-  payload: Pick<CatalogLocation, "name" | "address"> & { resource_ids?: number[] },
+  payload: Pick<CatalogLocation, "name" | "address">,
 ) {
   return staffApiClient.post<CatalogLocation>(`/api/v1/${tenantSlug}/catalog/locations/`, payload);
 }
@@ -24,7 +30,7 @@ export function staffCatalogLocationCreate(
 export function staffCatalogLocationUpdate(
   tenantSlug: string,
   locationId: number,
-  payload: Partial<Pick<CatalogLocation, "name" | "address" | "is_active" | "resource_ids">>,
+  payload: Partial<Pick<CatalogLocation, "name" | "address" | "is_active">>,
 ) {
   return staffApiClient.patch<CatalogLocation>(
     `/api/v1/${tenantSlug}/catalog/locations/${locationId}/`,
@@ -34,6 +40,55 @@ export function staffCatalogLocationUpdate(
 
 export function staffCatalogLocationDelete(tenantSlug: string, locationId: number) {
   return staffApiClient.delete(`/api/v1/${tenantSlug}/catalog/locations/${locationId}/`);
+}
+
+/** 列出指定地点下的资源（Admin）。 */
+export function staffCatalogLocationResourceList(tenantSlug: string, locationId: number) {
+  return staffApiClient.get<CatalogResourceList>(
+    `/api/v1/${tenantSlug}/catalog/locations/${locationId}/resources/`,
+  );
+}
+
+export function staffCatalogLocationResourceCreate(
+  tenantSlug: string,
+  locationId: number,
+  payload: Pick<CatalogResource, "name">,
+) {
+  return staffApiClient.post<CatalogResource>(
+    `/api/v1/${tenantSlug}/catalog/locations/${locationId}/resources/`,
+    payload,
+  );
+}
+
+export function staffCatalogLocationResourceUpdate(
+  tenantSlug: string,
+  locationId: number,
+  resourceId: number,
+  payload: Partial<Pick<CatalogResource, "name" | "is_active">>,
+) {
+  return staffApiClient.patch<CatalogResource>(
+    `/api/v1/${tenantSlug}/catalog/locations/${locationId}/resources/${resourceId}/`,
+    payload,
+  );
+}
+
+export function staffCatalogLocationResourceDelete(
+  tenantSlug: string,
+  locationId: number,
+  resourceId: number,
+) {
+  return staffApiClient.delete(
+    `/api/v1/${tenantSlug}/catalog/locations/${locationId}/resources/${resourceId}/`,
+  );
+}
+
+/** 聚合所有地点下的资源，供全局服务表单选用。 */
+export async function staffCatalogResourceListAll(tenantSlug: string) {
+  const { locations } = await staffCatalogLocationList(tenantSlug);
+  const lists = await Promise.all(
+    locations.map((location) => staffCatalogLocationResourceList(tenantSlug, location.id)),
+  );
+  return { resources: lists.flatMap((list) => list.resources) };
 }
 
 /** 列出服务（Admin）。 */
@@ -75,38 +130,6 @@ export function staffCatalogServiceUpdate(
 
 export function staffCatalogServiceDelete(tenantSlug: string, serviceId: number) {
   return staffApiClient.delete(`/api/v1/${tenantSlug}/catalog/services/${serviceId}/`);
-}
-
-/** 列出资源（Admin）。 */
-export function staffCatalogResourceList(tenantSlug: string) {
-  return staffApiClient.get<CatalogResourceList>(`/api/v1/${tenantSlug}/catalog/resources/`);
-}
-
-export function staffCatalogResourceCreate(
-  tenantSlug: string,
-  payload: Pick<CatalogResource, "name" | "resource_type"> & {
-    staff_user_id?: number | null;
-    location_ids?: number[];
-  },
-) {
-  return staffApiClient.post<CatalogResource>(`/api/v1/${tenantSlug}/catalog/resources/`, payload);
-}
-
-export function staffCatalogResourceUpdate(
-  tenantSlug: string,
-  resourceId: number,
-  payload: Partial<
-    Pick<CatalogResource, "name" | "resource_type" | "staff_user_id" | "is_active" | "location_ids">
-  >,
-) {
-  return staffApiClient.patch<CatalogResource>(
-    `/api/v1/${tenantSlug}/catalog/resources/${resourceId}/`,
-    payload,
-  );
-}
-
-export function staffCatalogResourceDelete(tenantSlug: string, resourceId: number) {
-  return staffApiClient.delete(`/api/v1/${tenantSlug}/catalog/resources/${resourceId}/`);
 }
 
 /** 获取预约规则（Admin）。 */

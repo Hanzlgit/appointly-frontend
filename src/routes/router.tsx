@@ -7,6 +7,7 @@ import {
 import { TenantLayout } from "@/components/layout/tenant-layout";
 import { ConsoleBookingsPage } from "@/pages/console/bookings";
 import { ConsoleCatalogPage } from "@/pages/console/catalog";
+import { ConsoleCatalogLocationDetailPage } from "@/pages/console/catalog-location-detail";
 import { ConsoleDashboardPage } from "@/pages/console/dashboard";
 import { ConsoleHomePage } from "@/pages/console/home";
 import { ConsoleLoginPage } from "@/pages/console/login";
@@ -46,6 +47,7 @@ export const appRouter = createBrowserRouter([
             children: [
               { path: "dashboard", element: <ConsoleDashboardPage /> },
               { path: "catalog", element: <ConsoleCatalogPage /> },
+              { path: "catalog/locations/:locationId", element: <ConsoleCatalogLocationDetailPage /> },
               { path: "settings", element: <ConsoleSettingsPage /> },
             ],
           },

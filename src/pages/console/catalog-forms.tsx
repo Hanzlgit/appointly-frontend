@@ -5,9 +5,9 @@ import {
   staffCatalogLocationCreate,
   staffCatalogLocationDelete,
   staffCatalogLocationUpdate,
-  staffCatalogResourceCreate,
-  staffCatalogResourceDelete,
-  staffCatalogResourceUpdate,
+  staffCatalogLocationResourceCreate,
+  staffCatalogLocationResourceDelete,
+  staffCatalogLocationResourceUpdate,
   staffCatalogServiceCreate,
   staffCatalogServiceDelete,
   staffCatalogServiceUpdate,
@@ -25,23 +25,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { ApiError } from "@/types/api";
 import type { CatalogLocation, CatalogResource, CatalogService } from "@/types/staff-api";
-
-const RESOURCE_TYPE_OPTIONS = [
-  { value: "staff", label: "工作人员" },
-  { value: "room", label: "房间" },
-  { value: "venue", label: "场地" },
-  { value: "equipment", label: "设备" },
-] as const;
 
 interface CatalogDeleteConfirmDialogProps {
   open: boolean;
@@ -98,7 +84,6 @@ interface CatalogLocationFormDialogProps {
   onOpenChange: (open: boolean) => void;
   tenantSlug: string;
   location: CatalogLocation | null;
-  resources: CatalogResource[];
   onSuccess: () => void;
 }
 
@@ -108,13 +93,11 @@ export function CatalogLocationFormDialog({
   onOpenChange,
   tenantSlug,
   location,
-  resources,
   onSuccess,
 }: CatalogLocationFormDialogProps) {
   const isEdit = location !== null;
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
-  const [resourceIds, setResourceIds] = useState<number[]>([]);
   const [isActive, setIsActive] = useState(true);
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -125,7 +108,6 @@ export function CatalogLocationFormDialog({
     }
     setName(location?.name ?? "");
     setAddress(location?.address ?? "");
-    setResourceIds(location?.resource_ids ?? []);
     setIsActive(location?.is_active ?? true);
     setFieldError(null);
     setApiError(null);
@@ -140,7 +122,6 @@ export function CatalogLocationFormDialog({
       const payload = {
         name: trimmedName,
         address: address.trim(),
-        resource_ids: resourceIds,
       };
       if (isEdit) {
         return staffCatalogLocationUpdate(tenantSlug, location.id, {
@@ -165,19 +146,13 @@ export function CatalogLocationFormDialog({
     },
   });
 
-  const toggleResource = (resourceId: number, checked: boolean) => {
-    setResourceIds((prev) =>
-      checked ? [...prev, resourceId] : prev.filter((id) => id !== resourceId),
-    );
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{isEdit ? "编辑地点" : "新增地点"}</DialogTitle>
           <DialogDescription>
-            {isEdit ? "修改地点信息与关联资源。" : "添加新的服务地点。"}
+            {isEdit ? "修改地点名称、地址与启用状态。" : "添加新的服务地点。"}
           </DialogDescription>
         </DialogHeader>
 
@@ -204,24 +179,6 @@ export function CatalogLocationFormDialog({
               rows={2}
             />
           </div>
-
-          {resources.length > 0 ? (
-            <div className="space-y-2">
-              <Label>关联资源</Label>
-              <div className="max-h-40 space-y-2 overflow-y-auto rounded-lg border p-3">
-                {resources.map((resource) => (
-                  <Label key={resource.id} className="cursor-pointer font-normal">
-                    <Checkbox
-                      checked={resourceIds.includes(resource.id)}
-                      onCheckedChange={(checked) => toggleResource(resource.id, checked === true)}
-                    />
-                    {resource.name}
-                    <span className="text-muted-foreground">（{resource.resource_type}）</span>
-                  </Label>
-                ))}
-              </div>
-            </div>
-          ) : null}
 
           {isEdit ? (
             <Label className="cursor-pointer font-normal">
@@ -492,7 +449,6 @@ export function CatalogServiceFormDialog({
                       onCheckedChange={(checked) => toggleResource(resource.id, checked === true)}
                     />
                     {resource.name}
-                    <span className="text-muted-foreground">（{resource.resource_type}）</span>
                   </Label>
                 ))}
               </div>
@@ -593,24 +549,22 @@ interface CatalogResourceFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   tenantSlug: string;
+  locationId: number;
   resource: CatalogResource | null;
-  locations: CatalogLocation[];
   onSuccess: () => void;
 }
 
-/** 资源新建/编辑 Dialog。 */
+/** 资源新建/编辑 Dialog（地点上下文内）。 */
 export function CatalogResourceFormDialog({
   open,
   onOpenChange,
   tenantSlug,
+  locationId,
   resource,
-  locations,
   onSuccess,
 }: CatalogResourceFormDialogProps) {
   const isEdit = resource !== null;
   const [name, setName] = useState("");
-  const [resourceType, setResourceType] = useState<string>("staff");
-  const [locationIds, setLocationIds] = useState<number[]>([]);
   const [isActive, setIsActive] = useState(true);
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -620,8 +574,6 @@ export function CatalogResourceFormDialog({
       return;
     }
     setName(resource?.name ?? "");
-    setResourceType(resource?.resource_type ?? "staff");
-    setLocationIds(resource?.location_ids ?? []);
     setIsActive(resource?.is_active ?? true);
     setFieldError(null);
     setApiError(null);
@@ -633,18 +585,14 @@ export function CatalogResourceFormDialog({
       if (!trimmedName) {
         throw new Error("VALIDATION");
       }
-      const payload = {
-        name: trimmedName,
-        resource_type: resourceType,
-        location_ids: locationIds,
-      };
+      const payload = { name: trimmedName };
       if (isEdit) {
-        return staffCatalogResourceUpdate(tenantSlug, resource.id, {
+        return staffCatalogLocationResourceUpdate(tenantSlug, locationId, resource.id, {
           ...payload,
           is_active: isActive,
         });
       }
-      return staffCatalogResourceCreate(tenantSlug, payload);
+      return staffCatalogLocationResourceCreate(tenantSlug, locationId, payload);
     },
     onSuccess: () => {
       onSuccess();
@@ -661,19 +609,13 @@ export function CatalogResourceFormDialog({
     },
   });
 
-  const toggleLocation = (locationId: number, checked: boolean) => {
-    setLocationIds((prev) =>
-      checked ? [...prev, locationId] : prev.filter((id) => id !== locationId),
-    );
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{isEdit ? "编辑资源" : "新增资源"}</DialogTitle>
           <DialogDescription>
-            {isEdit ? "修改资源信息与关联地点。" : "添加新的可预约资源。"}
+            {isEdit ? "修改资源名称与启用状态。" : "在此地点下添加可预约资源。"}
           </DialogDescription>
         </DialogHeader>
 
@@ -684,44 +626,11 @@ export function CatalogResourceFormDialog({
               id="resource-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="例如：张医生"
+              placeholder="例如：1号房间"
               aria-invalid={fieldError ? true : undefined}
             />
             {fieldError ? <p className="text-sm text-destructive">{fieldError}</p> : null}
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="resource-type">资源类型</Label>
-            <Select value={resourceType} onValueChange={(value) => value && setResourceType(value)}>
-              <SelectTrigger id="resource-type" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {RESOURCE_TYPE_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {locations.length > 0 ? (
-            <div className="space-y-2">
-              <Label>关联地点</Label>
-              <div className="max-h-40 space-y-2 overflow-y-auto rounded-lg border p-3">
-                {locations.map((location) => (
-                  <Label key={location.id} className="cursor-pointer font-normal">
-                    <Checkbox
-                      checked={locationIds.includes(location.id)}
-                      onCheckedChange={(checked) => toggleLocation(location.id, checked === true)}
-                    />
-                    {location.name}
-                  </Label>
-                ))}
-              </div>
-            </div>
-          ) : null}
 
           {isEdit ? (
             <Label className="cursor-pointer font-normal">
@@ -754,6 +663,7 @@ interface CatalogResourceDeleteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   tenantSlug: string;
+  locationId: number;
   resource: CatalogResource | null;
   onSuccess: () => void;
 }
@@ -763,6 +673,7 @@ export function CatalogResourceDeleteDialog({
   open,
   onOpenChange,
   tenantSlug,
+  locationId,
   resource,
   onSuccess,
 }: CatalogResourceDeleteDialogProps) {
@@ -779,7 +690,7 @@ export function CatalogResourceDeleteDialog({
       if (!resource) {
         throw new Error("无资源数据");
       }
-      return staffCatalogResourceDelete(tenantSlug, resource.id);
+      return staffCatalogLocationResourceDelete(tenantSlug, locationId, resource.id);
     },
     onSuccess: () => {
       onSuccess();
