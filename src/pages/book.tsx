@@ -138,7 +138,7 @@ export function BookPage() {
     );
   }
 
-  if (!service.location_ids?.includes(selectedLocation.id)) {
+  if (service.location_id !== selectedLocation.id) {
     return (
       <div className="space-y-4">
         <Alert variant="destructive">

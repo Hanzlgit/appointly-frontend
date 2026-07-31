@@ -5,7 +5,7 @@ export function servicesForLocation(
   services: CatalogPublicService[],
   locationId: number,
 ): CatalogPublicService[] {
-  return services.filter((service) => (service.location_ids ?? []).includes(locationId));
+  return services.filter((service) => service.location_id === locationId);
 }
 
 /** 按 ID 查找门店。 */
