@@ -2,7 +2,6 @@ import { CalendarDays, LogIn, LogOut } from "lucide-react";
 import { Link, Outlet, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
-import { TenantLocationBar } from "@/components/layout/tenant-location-bar";
 import { tenantContextRetrieve } from "@/api/tenant";
 import { Button } from "@/components/ui/button";
 import { authIsLoggedIn, authTokensClear } from "@/lib/auth-storage";
@@ -24,14 +23,11 @@ export function TenantLayout() {
     <div className="min-h-svh bg-background">
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="shrink-0">
-              <Link to={`/t/${tenantSlug}`} className="text-base font-semibold tracking-tight">
-                {tenantName}
-              </Link>
-              <p className="text-xs text-muted-foreground">在线预约</p>
-            </div>
-            <TenantLocationBar />
+          <div className="min-w-0 shrink-0">
+            <Link to={`/t/${tenantSlug}`} className="text-base font-semibold tracking-tight">
+              {tenantName}
+            </Link>
+            <p className="text-xs text-muted-foreground">在线预约</p>
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <Button variant="ghost" size="sm" render={<Link to={`/t/${tenantSlug}/bookings`} />}>

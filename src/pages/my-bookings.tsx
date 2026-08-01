@@ -10,8 +10,7 @@ import {
   schedulingBookingReschedule,
 } from "@/api/scheduling";
 import { catalogPublicBrowse, tenantContextRetrieve } from "@/api/tenant";
-import { BookingStatusBadge } from "@/components/booking/booking-status-badge";
-import { SlotPicker } from "@/components/booking/slot-picker";
+import { BookingListItem } from "@/components/booking/booking-list-item";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,10 +29,9 @@ import {
   sortBookingsByStart,
   type BookingTimeFilter,
 } from "@/lib/booking-filters";
-import { bookingCanCancel, bookingCanReschedule, bookingStatusLabel } from "@/lib/booking-status";
-import { bookingLocationLine, bookingResourceLine } from "@/lib/booking-display";
+import { bookingStatusLabel } from "@/lib/booking-status";
 import type { BookableSlot } from "@/lib/booking-slots";
-import { createIdempotencyKey, formatBookingWhen } from "@/lib/utils";
+import { createIdempotencyKey } from "@/lib/utils";
 import type { ApiError, Booking } from "@/types/api";
 
 const STATUS_FILTER_OPTIONS = [
@@ -262,86 +260,28 @@ export function MyBookingsPage() {
         <Card>
           <CardContent className="p-0">
             {pagination.items.map((booking, index) => {
-              const isRescheduling = reschedulingBooking?.id === booking.id;
-              const canModify = bookingCanCancel(booking.status);
-              const canReschedule = bookingCanReschedule(booking.status);
               const bookingLocation = locationById(booking.location_id);
 
               return (
                 <div key={booking.id}>
                   {index > 0 ? <Separator /> : null}
-                  <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start">
-                    <div className="font-mono text-xs leading-relaxed tabular-nums text-muted-foreground sm:w-40 sm:shrink-0">
-                      {formatBookingWhen(booking.start, booking.end, timeZone)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="font-medium">{booking.service_name}</p>
-                        <BookingStatusBadge status={booking.status} />
-                      </div>
-                      <p className="mt-1 text-sm text-muted-foreground">{bookingLocationLine(booking)}</p>
-                      {booking.location_address ? (
-                        <p className="text-sm text-muted-foreground">{booking.location_address}</p>
-                      ) : null}
-                      <p className="mt-1 text-sm text-muted-foreground">{bookingResourceLine(booking)}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">人数 {booking.party_size}</p>
-                    </div>
-                    {canModify ? (
-                      <div className="flex shrink-0 gap-2 sm:flex-col sm:items-end">
-                        {canReschedule ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={cancelMutation.isPending || rescheduleMutation.isPending}
-                            onClick={() =>
-                              isRescheduling ? closeReschedule() : openReschedule(booking)
-                            }
-                          >
-                            {isRescheduling ? "取消改期" : "改期"}
-                          </Button>
-                        ) : null}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={cancelMutation.isPending || rescheduleMutation.isPending}
-                          onClick={() => cancelMutation.mutate(booking.id)}
-                        >
-                          取消
-                        </Button>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {isRescheduling ? (
-                    <div className="space-y-4 border-t bg-muted/30 px-4 py-4">
-                      <p className="text-sm font-medium">选择新的时间</p>
-                      {rescheduleError ? (
-                        <Alert variant="destructive">
-                          <AlertDescription>{rescheduleError}</AlertDescription>
-                        </Alert>
-                      ) : null}
-                      <SlotPicker
-                        tenantSlug={tenantSlug}
-                        serviceId={booking.service_id}
-                        locationId={booking.location_id}
-                        location={bookingLocation}
-                        resourceId={booking.resource_id}
-                        timeZone={timeZone}
-                        selectedDate={rescheduleDate}
-                        onSelectedDateChange={setRescheduleDate}
-                        selectedSlot={rescheduleSlot}
-                        onSelectedSlotChange={setRescheduleSlot}
-                        excludeTimeSlotId={booking.time_slot_id}
-                      />
-                      <Button
-                        className="w-full"
-                        disabled={!rescheduleSlot?.time_slot_id || rescheduleMutation.isPending}
-                        onClick={() => rescheduleMutation.mutate()}
-                      >
-                        确认改期
-                      </Button>
-                    </div>
-                  ) : null}
+                  <BookingListItem
+                    booking={booking}
+                    timeZone={timeZone}
+                    location={bookingLocation}
+                    tenantSlug={tenantSlug}
+                    isRescheduling={reschedulingBooking?.id === booking.id}
+                    rescheduleDate={rescheduleDate}
+                    rescheduleSlot={rescheduleSlot}
+                    rescheduleError={rescheduleError}
+                    actionsDisabled={cancelMutation.isPending || rescheduleMutation.isPending}
+                    onOpenReschedule={() => openReschedule(booking)}
+                    onCloseReschedule={closeReschedule}
+                    onRescheduleDateChange={setRescheduleDate}
+                    onRescheduleSlotChange={setRescheduleSlot}
+                    onCancel={() => cancelMutation.mutate(booking.id)}
+                    onConfirmReschedule={() => rescheduleMutation.mutate()}
+                  />
                 </div>
               );
             })}
