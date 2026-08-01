@@ -1,9 +1,9 @@
 const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
-  "booking.created": "待确认",
-  "booking.confirmed": "已确认",
-  "booking.cancelled": "已取消",
-  "booking.rescheduled": "已改期",
-  "booking.reminder": "提醒",
+  "queue.ticket.created": "已取号",
+  "queue.ticket.called": "已叫号",
+  "queue.ticket.requeued": "重新排队",
+  "queue.ticket.cancelled": "已取消",
+  "queue.ticket.completed": "已完成",
 };
 
 /** 通知类型的中文标签。 */

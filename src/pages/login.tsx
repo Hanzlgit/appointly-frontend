@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 
 import { authCreateCustomerSession, authSendVerificationCode } from "@/api/auth";
@@ -13,10 +13,9 @@ import type { ApiError } from "@/types/api";
 
 /** 客户 OTP 登录页。 */
 export function LoginPage() {
-  const { tenantSlug = "" } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const redirectTo = searchParams.get("redirect") ?? `/t/${tenantSlug}`;
+  const redirectTo = searchParams.get("redirect") ?? "/";
 
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
@@ -24,12 +23,7 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   const loginMutation = useMutation({
-    mutationFn: () =>
-      authCreateCustomerSession({
-        phone,
-        code,
-        tenant_slug: tenantSlug,
-      }),
+    mutationFn: () => authCreateCustomerSession({ phone, code }),
     onSuccess: (tokens) => {
       authTokensSave(tokens);
       navigate(redirectTo, { replace: true });
@@ -54,7 +48,7 @@ export function LoginPage() {
     <div className="space-y-6">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">手机号登录</h1>
-        <p className="text-sm text-muted-foreground">验证后可预约并查看订单。</p>
+        <p className="text-sm text-muted-foreground">验证后可取号并查看排队状态。</p>
       </div>
 
       <Card>

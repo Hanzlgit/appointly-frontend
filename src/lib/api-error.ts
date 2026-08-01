@@ -9,7 +9,7 @@ export function apiErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) {
     const apiError = error as ApiError;
     if (apiError.status === 404) {
-      return "租户不存在，请检查 URL 中的 slug 是否正确。";
+      return "请求的资源不存在。";
     }
     if (apiError.status >= 502) {
       return "后端服务不可用。请确认 Django 已在 18000 端口启动。";

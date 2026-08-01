@@ -11,17 +11,17 @@ export interface AuthTokens {
   refresh: string;
 }
 
-export interface TenantContext {
-  slug: string;
-  name: string;
-  timezone: string;
-  is_active: boolean;
-}
-
 export interface CatalogPublicLocation {
   id: number;
   name: string;
   address: string;
+}
+
+export interface CatalogPublicStylist {
+  id: number;
+  name: string;
+  ticket_prefix: string;
+  queue_status: string;
 }
 
 export interface CatalogPublicService {
@@ -31,60 +31,38 @@ export interface CatalogPublicService {
   duration_minutes: number;
   price_cents: number;
   currency: string;
-  location_id: number;
+  stylist_id: number;
 }
 
-export interface CatalogPublicBrowse {
-  locations: CatalogPublicLocation[];
-  services: CatalogPublicService[];
+export interface PaginatedList<T> {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
 }
 
-export interface AvailabilitySlot {
-  time_slot_id: number;
-  resource_id: number;
-  location_id: number;
-  start: string;
-  end: string;
-  capacity: number;
-  remaining_capacity: number;
-}
+export type PaginatedLocationList = PaginatedList<CatalogPublicLocation>;
+export type PaginatedStylistList = PaginatedList<CatalogPublicStylist>;
+export type PaginatedServiceList = PaginatedList<CatalogPublicService>;
 
-export interface AvailabilityAggregateItem {
-  service_id: number;
-  location_id: number;
-  start: string;
-  end: string;
-  remaining_capacity: number;
-}
-
-export type AvailabilityResult =
-  | { mode: "resource"; slots: AvailabilitySlot[] }
-  | { mode: "aggregate"; availability: AvailabilityAggregateItem[] };
-
-export interface Booking {
+export interface QueueTicket {
   id: number;
+  ticket_display: string;
+  ticket_number: number;
   status: string;
-  contact_name: string;
-  contact_phone: string;
-  service_id: number;
-  service_name: string;
-  resource_id: number;
-  resource_name: string;
-  resource_is_active: boolean;
+  position: number;
+  ahead_count: number;
+  estimated_wait_minutes: number;
   location_id: number;
   location_name: string;
-  location_address: string;
-  location_is_active: boolean;
-  time_slot_id: number;
-  start: string;
-  end: string;
-  rescheduled_from_id: number | null;
-  rescheduled_to_id: number | null;
+  stylist_id: number;
+  stylist_name: string;
+  service_id: number;
+  service_name: string;
+  service_duration_minutes: number;
+  service_price_cents: number;
+  queue_date: string;
   created_at: string;
-}
-
-export interface BookingList {
-  bookings: Booking[];
 }
 
 export interface Notification {
@@ -92,7 +70,7 @@ export interface Notification {
   notification_type: string;
   title: string;
   body: string;
-  booking_id: number | null;
+  queue_ticket_id: number | null;
   read_at: string | null;
   created_at: string;
 }
@@ -107,14 +85,6 @@ export interface NotificationListResult {
 
 export interface NotificationReadAllResult {
   marked_count: number;
-}
-
-export interface CustomerProfile {
-  tenant_slug: string;
-  phone: string;
-  display_name: string;
-  notes: string;
-  tags: unknown;
 }
 
 export interface ApiError extends Error {

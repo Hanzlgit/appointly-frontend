@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, SearchX } from "lucide-react";
 
 import { notificationList, notificationMarkRead, notificationReadAll } from "@/api/notifications";
-import { tenantContextRetrieve } from "@/api/tenant";
 import { NotificationListItem } from "@/components/notification/notification-list-item";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -24,7 +23,6 @@ const PAGE_SIZE = 10;
 
 /** 客户站内通知列表页。 */
 export function NotificationsPage() {
-  const { tenantSlug = "" } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -38,15 +36,10 @@ export function NotificationsPage() {
     setPage(1);
   }, [debouncedSearch, readFilter, typeFilter]);
 
-  const tenantQuery = useQuery({
-    queryKey: ["tenant-context", tenantSlug],
-    queryFn: () => tenantContextRetrieve(tenantSlug),
-  });
-
   const notificationsQuery = useQuery({
-    queryKey: ["notifications", tenantSlug, page, debouncedSearch, readFilter, typeFilter],
+    queryKey: ["notifications", page, debouncedSearch, readFilter, typeFilter],
     queryFn: () =>
-      notificationList(tenantSlug, {
+      notificationList({
         page,
         page_size: PAGE_SIZE,
         q: debouncedSearch || undefined,
@@ -57,21 +50,20 @@ export function NotificationsPage() {
   });
 
   const markReadMutation = useMutation({
-    mutationFn: (notificationId: number) =>
-      notificationMarkRead(tenantSlug, notificationId),
+    mutationFn: (notificationId: number) => notificationMarkRead(notificationId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications", tenantSlug] });
-      queryClient.invalidateQueries({ queryKey: ["notifications-unread", tenantSlug] });
-      queryClient.invalidateQueries({ queryKey: ["notifications-preview", tenantSlug] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-preview"] });
     },
   });
 
   const readAllMutation = useMutation({
-    mutationFn: () => notificationReadAll(tenantSlug),
+    mutationFn: () => notificationReadAll(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications", tenantSlug] });
-      queryClient.invalidateQueries({ queryKey: ["notifications-unread", tenantSlug] });
-      queryClient.invalidateQueries({ queryKey: ["notifications-preview", tenantSlug] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-preview"] });
     },
     onError: (err: ApiError) => window.alert(err.message),
   });
@@ -80,8 +72,8 @@ export function NotificationsPage() {
     if (notification.read_at == null) {
       await markReadMutation.mutateAsync(notification.id);
     }
-    if (notification.booking_id != null) {
-      navigate(`/t/${tenantSlug}/bookings?highlight=${notification.booking_id}`);
+    if (notification.queue_ticket_id != null) {
+      navigate(`/queue/${notification.queue_ticket_id}`);
     }
   };
 
@@ -96,16 +88,14 @@ export function NotificationsPage() {
   }, [page, safePage]);
 
   if (!authIsLoggedIn()) {
-    const redirect = encodeURIComponent(`/t/${tenantSlug}/notifications`);
+    const redirect = encodeURIComponent("/notifications");
     return (
       <div className="space-y-6">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">需要登录</h1>
           <p className="text-sm text-muted-foreground">登录后可查看通知。</p>
         </div>
-        <Button render={<Link to={`/t/${tenantSlug}/login?redirect=${redirect}`} />}>
-          去登录
-        </Button>
+        <Button render={<Link to={`/login?redirect=${redirect}`} />}>去登录</Button>
       </div>
     );
   }
@@ -131,7 +121,6 @@ export function NotificationsPage() {
   const result = notificationsQuery.data;
   const items = result?.items ?? [];
   const unreadCount = result?.unread_count ?? 0;
-  const timeZone = tenantQuery.data?.timezone;
 
   return (
     <div className="space-y-6">
@@ -139,7 +128,7 @@ export function NotificationsPage() {
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">通知</h1>
           <p className="text-sm text-muted-foreground">
-            预约确认、取消、改期与提醒消息。
+            取号、叫号与排队状态变更消息。
             {unreadCount > 0 ? ` 当前 ${unreadCount} 条未读。` : null}
           </p>
         </div>
@@ -201,11 +190,7 @@ export function NotificationsPage() {
             }
           />
         ) : (
-          <EmptyState
-            icon={Bell}
-            title="暂无通知"
-            description="预约相关的消息会显示在这里。"
-          />
+          <EmptyState icon={Bell} title="暂无通知" description="排队相关的消息会显示在这里。" />
         )
       ) : (
         <Card>
@@ -215,8 +200,6 @@ export function NotificationsPage() {
                 {index > 0 ? <Separator /> : null}
                 <NotificationListItem
                   notification={notification}
-                  tenantSlug={tenantSlug}
-                  timeZone={timeZone}
                   onNavigate={handleNotificationClick}
                 />
               </div>

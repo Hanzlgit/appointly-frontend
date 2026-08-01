@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import { DEFAULT_TITLE } from "@/lib/page-title";
+import { BRAND_NAME } from "@/lib/page-title";
 
 /** 设置浏览器标签页标题，卸载时恢复默认。 */
 export function useDocumentTitle(title: string | null | undefined) {
@@ -11,7 +11,7 @@ export function useDocumentTitle(title: string | null | undefined) {
     const previous = document.title;
     document.title = title;
     return () => {
-      document.title = previous || DEFAULT_TITLE;
+      document.title = previous || BRAND_NAME;
     };
   }, [title]);
 }

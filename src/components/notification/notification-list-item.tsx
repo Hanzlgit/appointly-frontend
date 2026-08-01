@@ -6,8 +6,6 @@ import type { Notification } from "@/types/api";
 
 interface NotificationListItemProps {
   notification: Notification;
-  tenantSlug: string;
-  timeZone?: string;
   compact?: boolean;
   onNavigate?: (notification: Notification) => void;
   className?: string;
@@ -16,16 +14,14 @@ interface NotificationListItemProps {
 /** 单条站内通知展示。 */
 export function NotificationListItem({
   notification,
-  tenantSlug,
-  timeZone,
   compact = false,
   onNavigate,
   className,
 }: NotificationListItemProps) {
   const unread = notificationIsUnread(notification);
-  const bookingHref =
-    notification.booking_id != null
-      ? `/t/${tenantSlug}/bookings?highlight=${notification.booking_id}`
+  const queueHref =
+    notification.queue_ticket_id != null
+      ? `/queue/${notification.queue_ticket_id}`
       : null;
 
   const content = (
@@ -51,7 +47,7 @@ export function NotificationListItem({
             <p className="text-sm text-muted-foreground">{notification.body}</p>
           ) : null}
           <p className="text-xs text-muted-foreground">
-            {formatDateTime(notification.created_at, timeZone)}
+            {formatDateTime(notification.created_at)}
           </p>
         </div>
       </div>
@@ -73,14 +69,11 @@ export function NotificationListItem({
     );
   }
 
-  if (bookingHref) {
+  if (queueHref) {
     return (
       <Link
-        to={bookingHref}
-        className={cn(
-          "block px-4 py-3 transition-colors hover:bg-muted/60",
-          className,
-        )}
+        to={queueHref}
+        className={cn("block px-4 py-3 transition-colors hover:bg-muted/60", className)}
       >
         {content}
       </Link>

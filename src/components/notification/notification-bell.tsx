@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Bell } from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { notificationList, notificationMarkRead } from "@/api/notifications";
-import { tenantContextRetrieve } from "@/api/tenant";
 import { NotificationListItem } from "@/components/notification/notification-list-item";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -19,41 +18,31 @@ const PREVIEW_PAGE_SIZE = 5;
 
 /** 顶栏通知铃铛与下拉预览。 */
 export function NotificationBell() {
-  const { tenantSlug = "" } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const isLoggedIn = authIsLoggedIn();
 
-  const tenantQuery = useQuery({
-    queryKey: ["tenant-context", tenantSlug],
-    queryFn: () => tenantContextRetrieve(tenantSlug),
-    enabled: Boolean(tenantSlug) && isLoggedIn,
-  });
-
   const unreadQuery = useQuery({
-    queryKey: ["notifications-unread", tenantSlug],
-    queryFn: () =>
-      notificationList(tenantSlug, { page: 1, page_size: 1 }),
-    enabled: Boolean(tenantSlug) && isLoggedIn,
+    queryKey: ["notifications-unread"],
+    queryFn: () => notificationList({ page: 1, page_size: 1 }),
+    enabled: isLoggedIn,
     refetchInterval: POLL_INTERVAL_MS,
   });
 
   const previewQuery = useQuery({
-    queryKey: ["notifications-preview", tenantSlug],
-    queryFn: () =>
-      notificationList(tenantSlug, { page: 1, page_size: PREVIEW_PAGE_SIZE }),
-    enabled: Boolean(tenantSlug) && isLoggedIn && open,
+    queryKey: ["notifications-preview"],
+    queryFn: () => notificationList({ page: 1, page_size: PREVIEW_PAGE_SIZE }),
+    enabled: isLoggedIn && open,
   });
 
   const markReadMutation = useMutation({
-    mutationFn: (notificationId: number) =>
-      notificationMarkRead(tenantSlug, notificationId),
+    mutationFn: (notificationId: number) => notificationMarkRead(notificationId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications-unread", tenantSlug] });
-      queryClient.invalidateQueries({ queryKey: ["notifications-preview", tenantSlug] });
-      queryClient.invalidateQueries({ queryKey: ["notifications", tenantSlug] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-preview"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 
@@ -79,15 +68,14 @@ export function NotificationBell() {
   const unreadCount = unreadQuery.data?.unread_count ?? 0;
   const badgeLabel = formatUnreadBadgeCount(unreadCount);
   const previewItems = previewQuery.data?.items ?? [];
-  const timeZone = tenantQuery.data?.timezone;
 
   const handleNotificationClick = async (notification: Notification) => {
     if (notification.read_at == null) {
       await markReadMutation.mutateAsync(notification.id);
     }
     setOpen(false);
-    if (notification.booking_id != null) {
-      navigate(`/t/${tenantSlug}/bookings?highlight=${notification.booking_id}`);
+    if (notification.queue_ticket_id != null) {
+      navigate(`/queue/${notification.queue_ticket_id}`);
     }
   };
 
@@ -138,8 +126,6 @@ export function NotificationBell() {
                   {index > 0 ? <Separator /> : null}
                   <NotificationListItem
                     notification={notification}
-                    tenantSlug={tenantSlug}
-                    timeZone={timeZone}
                     compact
                     onNavigate={handleNotificationClick}
                   />
@@ -153,7 +139,7 @@ export function NotificationBell() {
               variant="ghost"
               size="sm"
               className="w-full justify-center"
-              render={<Link to={`/t/${tenantSlug}/notifications`} onClick={() => setOpen(false)} />}
+              render={<Link to="/notifications" onClick={() => setOpen(false)} />}
             >
               查看全部通知
             </Button>

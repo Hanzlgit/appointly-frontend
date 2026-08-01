@@ -10,7 +10,7 @@ export interface NotificationListParams {
 }
 
 /** 分页列出当前客户的站内通知。 */
-export function notificationList(tenantSlug: string, params: NotificationListParams = {}) {
+export function notificationList(params: NotificationListParams = {}) {
   const search = new URLSearchParams();
   if (params.page != null) {
     search.set("page", String(params.page));
@@ -30,21 +30,15 @@ export function notificationList(tenantSlug: string, params: NotificationListPar
 
   const query = search.toString();
   const suffix = query ? `?${query}` : "";
-  return apiClient.get<NotificationListResult>(
-    `/api/v1/${tenantSlug}/notifications/${suffix}`,
-  );
+  return apiClient.get<NotificationListResult>(`/api/v1/notifications/${suffix}`);
 }
 
 /** 将单条通知标记为已读。 */
-export function notificationMarkRead(tenantSlug: string, notificationId: number) {
-  return apiClient.patch<Notification>(
-    `/api/v1/${tenantSlug}/notifications/${notificationId}/read/`,
-  );
+export function notificationMarkRead(notificationId: number) {
+  return apiClient.patch<Notification>(`/api/v1/notifications/${notificationId}/read/`);
 }
 
 /** 将全部通知标记为已读。 */
-export function notificationReadAll(tenantSlug: string) {
-  return apiClient.post<NotificationReadAllResult>(
-    `/api/v1/${tenantSlug}/notifications/read-all/`,
-  );
+export function notificationReadAll() {
+  return apiClient.post<NotificationReadAllResult>("/api/v1/notifications/read-all/");
 }
