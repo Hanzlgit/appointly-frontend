@@ -68,8 +68,14 @@ export interface Booking {
   contact_name: string;
   contact_phone: string;
   service_id: number;
+  service_name: string;
   resource_id: number;
+  resource_name: string;
+  resource_is_active: boolean;
   location_id: number;
+  location_name: string;
+  location_address: string;
+  location_is_active: boolean;
   time_slot_id: number;
   start: string;
   end: string;

@@ -12,7 +12,6 @@ import {
 import { catalogPublicBrowse, tenantContextRetrieve } from "@/api/tenant";
 import { BookingStatusBadge } from "@/components/booking/booking-status-badge";
 import { SlotPicker } from "@/components/booking/slot-picker";
-import { LocationDetail } from "@/components/catalog/location-detail";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,6 +31,7 @@ import {
   type BookingTimeFilter,
 } from "@/lib/booking-filters";
 import { bookingCanCancel, bookingCanReschedule, bookingStatusLabel } from "@/lib/booking-status";
+import { bookingLocationLine, bookingResourceLine } from "@/lib/booking-display";
 import type { BookableSlot } from "@/lib/booking-slots";
 import { createIdempotencyKey, formatBookingWhen } from "@/lib/utils";
 import type { ApiError, Booking } from "@/types/api";
@@ -113,8 +113,7 @@ export function MyBookingsPage() {
     services.find((service) => service.id === serviceId)?.name ?? `服务 #${serviceId}`;
   const locationName = (locationId: number) =>
     locations.find((location) => location.id === locationId)?.name ?? `地点 #${locationId}`;
-  const locationById = (locationId: number) =>
-    locations.find((location) => location.id === locationId);
+  const locationById = (locationId: number) => locations.find((location) => location.id === locationId);
 
   const filteredBookings = useMemo(() => {
     const all = bookingsQuery.data?.bookings ?? [];
@@ -200,7 +199,7 @@ export function MyBookingsPage() {
         <ListToolbar
           search={search}
           onSearchChange={setSearch}
-          searchPlaceholder="搜索服务、门店、预约号…"
+          searchPlaceholder="搜索服务、门店…"
           resultCount={filteredBookings.length}
           resultLabel="条预约"
           filters={[
@@ -277,20 +276,15 @@ export function MyBookingsPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="font-medium">{serviceName(booking.service_id)}</p>
+                        <p className="font-medium">{booking.service_name}</p>
                         <BookingStatusBadge status={booking.status} />
                       </div>
-                      <div className="mt-1">
-                        <LocationDetail
-                          location={bookingLocation}
-                          fallback={`地点 #${booking.location_id}`}
-                        />
-                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">{bookingLocationLine(booking)}</p>
+                      {booking.location_address ? (
+                        <p className="text-sm text-muted-foreground">{booking.location_address}</p>
+                      ) : null}
+                      <p className="mt-1 text-sm text-muted-foreground">{bookingResourceLine(booking)}</p>
                       <p className="mt-1 text-sm text-muted-foreground">人数 {booking.party_size}</p>
-                      <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
-                        #{booking.id}
-                        {booking.contact_name ? ` · ${booking.contact_name}` : ""}
-                      </p>
                     </div>
                     {canModify ? (
                       <div className="flex shrink-0 gap-2 sm:flex-col sm:items-end">

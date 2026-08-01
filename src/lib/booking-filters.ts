@@ -35,7 +35,10 @@ export function filterBookingsByQuery<T extends Booking | StaffBooking>(
     matchesFields(normalized, [
       booking.id,
       labels.serviceName(booking.service_id),
+      "service_name" in booking ? booking.service_name : "",
       labels.locationName(booking.location_id),
+      "location_name" in booking ? booking.location_name : "",
+      "resource_name" in booking ? booking.resource_name : "",
       booking.contact_name,
       booking.contact_phone,
       "customer_phone" in booking ? booking.customer_phone : "",
