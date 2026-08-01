@@ -246,7 +246,7 @@ export function ConsoleBookingsPage() {
                       </span>
                     </p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {locationName(booking.location_id)} · 人数 {booking.party_size}
+                      {locationName(booking.location_id)}
                     </p>
                     <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
                       #{booking.id}

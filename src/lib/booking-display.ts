@@ -2,16 +2,12 @@ import type { Booking } from "@/types/api";
 
 type BookingMetaFields = Pick<
   Booking,
-  "location_name" | "resource_name" | "party_size" | "location_is_active" | "resource_is_active"
+  "location_name" | "resource_name" | "location_is_active" | "resource_is_active"
 >;
 
-/** 预约卡片元信息片段（门店 · 资源 · 人数）。 */
+/** 预约卡片元信息片段（门店 · 资源）。 */
 export function bookingMetaParts(booking: BookingMetaFields): string[] {
-  const parts = [booking.location_name, booking.resource_name];
-  if (booking.party_size > 1) {
-    parts.push(`${booking.party_size}人`);
-  }
-  return parts;
+  return [booking.location_name, booking.resource_name];
 }
 
 /** 合并为元信息单行文案。 */

@@ -43,14 +43,11 @@ export function schedulingBookingCreate(
   tenantSlug: string,
   payload: {
     service_id: number;
-    party_size?: number;
     location_id?: number;
     time_slot_id?: number;
     start?: string;
     end?: string;
     resource_id?: number;
-    contact_name?: string;
-    contact_phone?: string;
   },
 ) {
   return apiClient.post<Booking>(`/api/v1/${tenantSlug}/scheduling/bookings/`, payload, {

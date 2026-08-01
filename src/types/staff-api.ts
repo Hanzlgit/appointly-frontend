@@ -3,7 +3,6 @@ export type TenantRole = "tenant_admin" | "staff";
 export interface StaffBooking {
   id: number;
   status: string;
-  party_size: number;
   contact_name: string;
   contact_phone: string;
   customer_phone?: string;

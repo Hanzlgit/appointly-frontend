@@ -6,7 +6,7 @@ import { schedulingAvailabilityQuery } from "@/api/scheduling";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   availabilityToBookableSlots,
@@ -81,12 +81,11 @@ export function SlotPicker({
           <CardTitle>日期</CardTitle>
         </CardHeader>
         <CardContent>
-          <Input
-            type="date"
-            className="max-w-xs font-mono tabular-nums"
+          <DatePicker
+            className="max-w-xs"
             value={selectedDate}
-            onChange={(event) => {
-              onSelectedDateChange(event.target.value);
+            onValueChange={(date) => {
+              onSelectedDateChange(date);
               onSelectedSlotChange(null);
             }}
           />
@@ -125,7 +124,7 @@ export function SlotPicker({
                     onClick={() => onSelectedSlotChange(slot)}
                   >
                     {formatDateTime(slot.start, timeZone)}
-                    <span className="opacity-70">余{slot.remaining_capacity}</span>
+                    <span className="opacity-70">剩余名额 {slot.remaining_capacity}</span>
                   </Button>
                 );
               })}

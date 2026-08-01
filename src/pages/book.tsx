@@ -10,13 +10,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { authIsLoggedIn } from "@/lib/auth-storage";
 import { findLocation } from "@/lib/catalog";
@@ -37,9 +34,6 @@ export function BookPage() {
   );
   const [selectedLocationId, setSelectedLocationId] = useState<number | null>(locationIdFromUrl);
   const [selectedSlot, setSelectedSlot] = useState<BookableSlot | null>(null);
-  const [partySize, setPartySize] = useState(1);
-  const [contactName, setContactName] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const tenantQuery = useQuery({
@@ -79,14 +73,11 @@ export function BookPage() {
 
       return schedulingBookingCreate(tenantSlug, {
         service_id: serviceId,
-        party_size: partySize,
         location_id: selectedSlot.location_id,
         time_slot_id: selectedSlot.time_slot_id,
         start: selectedSlot.time_slot_id ? undefined : selectedSlot.start,
         end: selectedSlot.time_slot_id ? undefined : selectedSlot.end,
         resource_id: selectedSlot.resource_id,
-        contact_name: contactName,
-        contact_phone: contactPhone,
       });
     },
     onSuccess: () => navigate(`/t/${tenantSlug}/bookings?success=1`),
@@ -218,47 +209,13 @@ export function BookPage() {
         onSelectedSlotChange={setSelectedSlot}
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>联系信息</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="party-size">人数</Label>
-            <Input
-              id="party-size"
-              type="number"
-              min={1}
-              className="max-w-[8rem] font-mono tabular-nums"
-              value={partySize}
-              onChange={(event) => setPartySize(Number(event.target.value))}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="contact-name">联系人（可选）</Label>
-            <Input
-              id="contact-name"
-              value={contactName}
-              onChange={(event) => setContactName(event.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="contact-phone">联系电话（可选）</Label>
-            <Input
-              id="contact-phone"
-              value={contactPhone}
-              onChange={(event) => setContactPhone(event.target.value)}
-            />
-          </div>
-          <Button
-            className="w-full"
-            disabled={!selectedSlot || bookingMutation.isPending}
-            onClick={() => bookingMutation.mutate()}
-          >
-            确认预约
-          </Button>
-        </CardContent>
-      </Card>
+      <Button
+        className="w-full"
+        disabled={!selectedSlot || bookingMutation.isPending}
+        onClick={() => bookingMutation.mutate()}
+      >
+        确认预约
+      </Button>
     </div>
   );
 }

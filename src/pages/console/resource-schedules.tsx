@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -303,7 +304,7 @@ function ScheduleRuleCreateDialog({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="schedule-capacity">每时段容量</Label>
+              <Label htmlFor="schedule-capacity">每时段可预约数</Label>
               <Input
                 id="schedule-capacity"
                 type="number"
@@ -464,12 +465,11 @@ function ScheduleRuleEditDialog({
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="schedule-effective-date">生效日期</Label>
-            <Input
+            <DatePicker
               id="schedule-effective-date"
-              type="date"
-              className="max-w-xs font-mono tabular-nums"
+              className="max-w-xs"
               value={effectiveDate}
-              onChange={(event) => setEffectiveDate(event.target.value)}
+              onValueChange={setEffectiveDate}
             />
           </div>
 
@@ -534,7 +534,7 @@ function ScheduleRuleEditDialog({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-schedule-capacity">每时段容量</Label>
+              <Label htmlFor="edit-schedule-capacity">每时段可预约数</Label>
               <Input
                 id="edit-schedule-capacity"
                 type="number"
@@ -881,7 +881,7 @@ export function ConsoleResourceSchedulesPage() {
                             <span className="mx-2">·</span>
                             间隔 {rule.slot_interval_minutes} 分钟
                             <span className="mx-2">·</span>
-                            容量 {rule.capacity}
+                            可预约 {rule.capacity}
                           </p>
                         </div>
                         <div className="flex shrink-0 flex-wrap items-center gap-2">

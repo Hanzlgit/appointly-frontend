@@ -64,7 +64,6 @@ export type AvailabilityResult =
 export interface Booking {
   id: number;
   status: string;
-  party_size: number;
   contact_name: string;
   contact_phone: string;
   service_id: number;
