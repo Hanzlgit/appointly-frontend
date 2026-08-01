@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import { tenantContextRetrieve } from "@/api/tenant";
+import { NotificationBell } from "@/components/notification/notification-bell";
 import { Button } from "@/components/ui/button";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { authIsLoggedIn, authTokensClear } from "@/lib/auth-storage";
@@ -38,6 +39,7 @@ export function TenantLayout() {
             <p className="text-xs text-muted-foreground">在线预约</p>
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            <NotificationBell />
             <Button variant="ghost" size="sm" render={<Link to={`/t/${tenantSlug}/bookings`} />}>
               <CalendarDays className="size-3.5" />
               我的预约

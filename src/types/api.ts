@@ -88,6 +88,28 @@ export interface BookingList {
   bookings: Booking[];
 }
 
+export interface Notification {
+  id: number;
+  notification_type: string;
+  title: string;
+  body: string;
+  booking_id: number | null;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface NotificationListResult {
+  items: Notification[];
+  total: number;
+  page: number;
+  page_size: number;
+  unread_count: number;
+}
+
+export interface NotificationReadAllResult {
+  marked_count: number;
+}
+
 export interface CustomerProfile {
   tenant_slug: string;
   phone: string;

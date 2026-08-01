@@ -1,5 +1,5 @@
 import { formatISO, parseISO, startOfDay } from "date-fns";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarPlus, SearchX } from "lucide-react";
@@ -31,8 +31,10 @@ import {
 } from "@/lib/booking-filters";
 import { bookingStatusLabel } from "@/lib/booking-status";
 import type { BookableSlot } from "@/lib/booking-slots";
-import { createIdempotencyKey } from "@/lib/utils";
+import { createIdempotencyKey, cn } from "@/lib/utils";
 import type { ApiError, Booking } from "@/types/api";
+
+const PAGE_SIZE = 8;
 
 const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "全部状态" },
@@ -49,6 +51,10 @@ export function MyBookingsPage() {
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const justBooked = searchParams.get("success") === "1";
+  const highlightParam = searchParams.get("highlight");
+  const highlightId = highlightParam ? Number(highlightParam) : null;
+  const [highlightActive, setHighlightActive] = useState(false);
+  const highlightHandledRef = useRef<number | null>(null);
 
   const [search, setSearch] = useState("");
   const [timeFilter, setTimeFilter] = useState<BookingTimeFilter>("all");
@@ -125,9 +131,60 @@ export function MyBookingsPage() {
   }, [bookingsQuery.data?.bookings, timeFilter, statusFilter, debouncedSearch, sortKey, services, locations]);
 
   const pagination = usePaginatedList(filteredBookings, {
-    pageSize: 8,
+    pageSize: PAGE_SIZE,
     resetKeys: [debouncedSearch, timeFilter, statusFilter, sortKey],
   });
+
+  useEffect(() => {
+    if (!highlightId || Number.isNaN(highlightId) || !bookingsQuery.data) {
+      return;
+    }
+    if (highlightHandledRef.current === highlightId) {
+      return;
+    }
+
+    const exists = bookingsQuery.data.bookings.some((booking) => booking.id === highlightId);
+    if (!exists) {
+      return;
+    }
+
+    highlightHandledRef.current = highlightId;
+    setSearch("");
+    setTimeFilter("all");
+    setStatusFilter("all");
+  }, [highlightId, bookingsQuery.data]);
+
+  useEffect(() => {
+    if (!highlightId || Number.isNaN(highlightId)) {
+      return;
+    }
+
+    const index = filteredBookings.findIndex((booking) => booking.id === highlightId);
+    if (index < 0) {
+      return;
+    }
+
+    const targetPage = Math.floor(index / PAGE_SIZE) + 1;
+    if (pagination.page !== targetPage) {
+      pagination.setPage(targetPage);
+    }
+  }, [highlightId, filteredBookings, pagination.page, pagination.setPage]);
+
+  useEffect(() => {
+    if (!highlightId || Number.isNaN(highlightId)) {
+      return;
+    }
+
+    const element = document.getElementById(`booking-${highlightId}`);
+    if (!element) {
+      return;
+    }
+
+    element.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightActive(true);
+    const timer = window.setTimeout(() => setHighlightActive(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [highlightId, pagination.page, pagination.items]);
 
   const openReschedule = (booking: Booking) => {
     setReschedulingBooking(booking);
@@ -263,7 +320,14 @@ export function MyBookingsPage() {
               const bookingLocation = locationById(booking.location_id);
 
               return (
-                <div key={booking.id}>
+                <div
+                  key={booking.id}
+                  id={`booking-${booking.id}`}
+                  className={cn(
+                    "transition-colors duration-700",
+                    highlightActive && booking.id === highlightId && "bg-primary/10",
+                  )}
+                >
                   {index > 0 ? <Separator /> : null}
                   <BookingListItem
                     booking={booking}

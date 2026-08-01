@@ -16,6 +16,7 @@ import { ConsoleSettingsPage } from "@/pages/console/settings";
 import { BookPage } from "@/pages/book";
 import { LoginPage } from "@/pages/login";
 import { MyBookingsPage } from "@/pages/my-bookings";
+import { NotificationsPage } from "@/pages/notifications";
 import { TenantHomePage } from "@/pages/tenant-home";
 
 /** 应用路由表。 */
@@ -34,6 +35,7 @@ export const appRouter = createBrowserRouter([
           { path: "login", element: <LoginPage /> },
           { path: "book", element: <BookPage /> },
           { path: "bookings", element: <MyBookingsPage /> },
+          { path: "notifications", element: <NotificationsPage /> },
         ],
       },
       { path: "console/login", element: <ConsoleLoginPage /> },

@@ -15,6 +15,9 @@ export function resolveCustomerPageTitle(pathname: string, tenantSlug: string): 
   if (pathname.endsWith("/bookings")) {
     return "我的预约";
   }
+  if (pathname.endsWith("/notifications")) {
+    return "通知";
+  }
   return DEFAULT_TITLE;
 }
 
