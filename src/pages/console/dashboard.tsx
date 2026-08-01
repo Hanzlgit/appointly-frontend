@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { staffDashboardSummaryRetrieve } from "@/api/staff-dashboard";
-import { tenantContextRetrieve } from "@/api/tenant";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Card,
@@ -18,11 +17,6 @@ import { bookingStatusLabel } from "@/lib/booking-status";
 /** 经营看板（Admin）。 */
 export function ConsoleDashboardPage() {
   const { tenantSlug } = useConsoleSession();
-
-  const tenantQuery = useQuery({
-    queryKey: ["tenant-context", tenantSlug],
-    queryFn: () => tenantContextRetrieve(tenantSlug),
-  });
 
   const dashboardQuery = useQuery({
     queryKey: ["staff-dashboard", tenantSlug],
@@ -51,8 +45,7 @@ export function ConsoleDashboardPage() {
   }
 
   const data = dashboardQuery.data!;
-  const summary = data.today_summary;
-  const timeZone = tenantQuery.data?.timezone;
+  const summary = data.upcoming_summary;
 
   const statCards = [
     { label: bookingStatusLabel("pending"), value: summary.pending },
@@ -67,8 +60,9 @@ export function ConsoleDashboardPage() {
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">经营看板</h1>
         <p className="text-sm text-muted-foreground">
+          自{" "}
           <span className="font-mono tabular-nums">{data.reference_date}</span>
-          {timeZone ? ` · ${timeZone}` : ""}
+          {" "}起全部预约概况
         </p>
       </div>
 
@@ -84,7 +78,7 @@ export function ConsoleDashboardPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <DataPanel title="近 7 日预约趋势">
+        <DataPanel title="未来 7 日预约趋势">
           {data.seven_day_trend.length === 0 ? (
             <EmptyHint />
           ) : (

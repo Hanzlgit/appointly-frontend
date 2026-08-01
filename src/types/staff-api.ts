@@ -63,6 +63,7 @@ export interface DashboardPopularService {
 export interface DashboardSummary {
   reference_date: string;
   today_summary: DashboardStatusSummary;
+  upcoming_summary: DashboardStatusSummary;
   seven_day_trend: DashboardTrendPoint[];
   bookings_by_location: DashboardLocationCount[];
   resource_utilization: DashboardResourceUtilization[];
