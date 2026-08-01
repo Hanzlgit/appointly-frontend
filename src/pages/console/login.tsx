@@ -1,14 +1,17 @@
 import { useState } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { staffAuthCreateSession } from "@/api/staff-auth";
+import { tenantContextRetrieve } from "@/api/tenant";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { staffAuthIsLoggedIn } from "@/lib/staff-auth-storage";
+import { useDocumentTitle } from "@/hooks/use-document-title";
+import { formatConsoleDocumentTitle } from "@/lib/page-title";
 import type { ApiError } from "@/types/api";
 
 /** 员工/管理员登录页。 */
@@ -22,6 +25,15 @@ export function ConsoleLoginPage() {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  const tenantQuery = useQuery({
+    queryKey: ["tenant-context", tenantSlug],
+    queryFn: () => tenantContextRetrieve(tenantSlug),
+    enabled: Boolean(tenantSlug),
+  });
+  useDocumentTitle(
+    formatConsoleDocumentTitle("员工登录", tenantQuery.data?.name ?? tenantSlug),
+  );
 
   if (staffAuthIsLoggedIn()) {
     return <Navigate to={redirectTo} replace />;

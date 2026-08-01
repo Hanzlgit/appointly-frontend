@@ -1,14 +1,20 @@
 import { CalendarDays, LogIn, LogOut } from "lucide-react";
-import { Link, Outlet, useParams } from "react-router-dom";
+import { Link, Outlet, useLocation, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import { tenantContextRetrieve } from "@/api/tenant";
 import { Button } from "@/components/ui/button";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { authIsLoggedIn, authTokensClear } from "@/lib/auth-storage";
+import {
+  formatCustomerDocumentTitle,
+  resolveCustomerPageTitle,
+} from "@/lib/page-title";
 
 /** 租户页面通用布局，含顶栏导航。 */
 export function TenantLayout() {
   const { tenantSlug = "" } = useParams();
+  const { pathname } = useLocation();
   const isLoggedIn = authIsLoggedIn();
 
   const tenantQuery = useQuery({
@@ -18,6 +24,8 @@ export function TenantLayout() {
   });
 
   const tenantName = tenantQuery.data?.name ?? tenantSlug;
+  const page = resolveCustomerPageTitle(pathname, tenantSlug);
+  useDocumentTitle(formatCustomerDocumentTitle(page, tenantName));
 
   return (
     <div className="min-h-svh bg-background">

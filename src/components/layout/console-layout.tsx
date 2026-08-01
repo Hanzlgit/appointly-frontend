@@ -11,6 +11,11 @@ import { ConsoleSessionProvider, useConsoleSession } from "@/lib/console-session
 import { staffAuthIsLoggedIn, staffAuthTokensClear } from "@/lib/staff-auth-storage";
 import { staffIsAdmin, staffRoleLabel } from "@/lib/staff-role";
 import { cn } from "@/lib/utils";
+import { useDocumentTitle } from "@/hooks/use-document-title";
+import {
+  formatConsoleDocumentTitle,
+  resolveConsolePageTitle,
+} from "@/lib/page-title";
 import type { TenantRole } from "@/types/staff-api";
 
 const NAV_ITEMS = [
@@ -75,6 +80,8 @@ function ConsoleLayout({ role }: ConsoleLayoutProps) {
 
   const tenantName = tenantQuery.data?.name ?? tenantSlug;
   const basePath = `/t/${tenantSlug}/console`;
+  const page = resolveConsolePageTitle(location.pathname, tenantSlug);
+  useDocumentTitle(formatConsoleDocumentTitle(page, tenantName));
 
   return (
     <div className="min-h-svh bg-background">
